@@ -1,0 +1,8 @@
+// เพิ่มส่วนนี้ที่ต้น doGet(e) ก่อนคืนหน้า Index เดิม
+if (e && e.parameter && e.parameter.mode === 'scannerBridge') {
+  const nonce=String(e.parameter.nonce||'');
+  if(!/^[a-f0-9]{48}$/.test(nonce))throw Error('Invalid scanner bridge nonce');
+  const template=HtmlService.createTemplateFromFile('ScannerBridge');
+  template.bridgeNonce=nonce;
+  return template.evaluate().setTitle('KDTC Scanner Connection').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
