@@ -1,9 +1,10 @@
 'use strict';
 const $=id=>document.getElementById(id),key='kdtc_mobile_v1';
-const defaultEndpoint='https://script.google.com/macros/s/AKfycbwQzNsCVObXHm23t1PEzcbrMgWyEHr3L3oOhbOgyC34v07J3CEXQv4INKzsDb9vORMn3w/exec';
+const previousEndpoint='https://script.google.com/macros/s/AKfycbwQzNsCVObXHm23t1PEzcbrMgWyEHr3L3oOhbOgyC34v07J3CEXQv4INKzsDb9vORMn3w/exec';
+const defaultEndpoint='https://script.google.com/macros/s/AKfycbzh2F4_Y9zxiZe-wgb6h954k7qJWqYZgnOWfGU8jxPj4OiycXUjRGG1GieFi73CKv8zJQ/exec';
 function random(){return Array.from(crypto.getRandomValues(new Uint8Array(24)),v=>v.toString(16).padStart(2,'0')).join('')}
 function read(){try{return JSON.parse(localStorage.getItem(key)||'{}')}catch(e){return {}}}
-const saved=read(),state={clientDeviceId:saved.clientDeviceId||'M-'+random(),deviceToken:saved.deviceToken||'',device:saved.device||null,request:saved.request||null,queue:saved.queue||[],endpoint:saved.endpoint||defaultEndpoint,activities:[],offset:0,count:0,peer:null,origin:'',nonce:'',camera:null,busy:false,cameraBusy:false};
+const saved=read(),state={clientDeviceId:saved.clientDeviceId||'M-'+random(),deviceToken:saved.deviceToken||'',device:saved.device||null,request:saved.request||null,queue:saved.queue||[],endpoint:(!saved.endpoint||saved.endpoint===previousEndpoint)?defaultEndpoint:saved.endpoint,activities:[],offset:0,count:0,peer:null,origin:'',nonce:'',camera:null,busy:false,cameraBusy:false};
 function persist(){try{localStorage.setItem(key,JSON.stringify({clientDeviceId:state.clientDeviceId,deviceToken:state.deviceToken,device:state.device,request:state.request,queue:state.queue,endpoint:state.endpoint}));$('queueCount').textContent='คิว '+state.queue.length;return true}catch(e){message('บันทึกข้อมูลในเบราว์เซอร์ไม่สำเร็จ กรุณาตรวจพื้นที่เก็บข้อมูลก่อนสแกน',true);return false}}
 function message(text,error=false){$('message').textContent=text;$('message').style.color=error?'#b33455':'#577589'}
 const calls=new Map();
