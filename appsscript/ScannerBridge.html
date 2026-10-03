@@ -2,7 +2,7 @@
 'use strict';
 const origin='https:'+String.fromCharCode(47,47)+'kruthipruksa-cmd.github.io';
 const nonce=<?!= JSON.stringify(bridgeNonce) ?>;
-const methods=new Set(['requestScannerDevice','getScannerRequestStatus','restoreScannerDevice','getScannerBootstrap','submitScanBatch']);
+const methods=new Set(['requestScannerDevice','getScannerRequestStatus','restoreScannerDevice','getScannerBootstrap','submitScanBatch','getMyScannerRecoveryCode']);
 const pending=new Set();
 function send(data){window.top.postMessage(Object.assign({channel:'KDTC_SCANNER_V1',nonce},data),origin)}
 let readyTimer=setInterval(()=>send({type:'ready'}),1000);send({type:'ready'});
