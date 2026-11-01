@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer"><title>KDTC • สแกนคอนกรีต</title><link rel="stylesheet" href="scanner.css"></head><body><main>
+<header><a href="https://script.google.com/macros/s/AKfycbzF--M6-8Qn0wBJ5PiNOVbdm-2cTCVmHqadlfa7Q3JsCbwe4YbX-92MUHzb8y9iAvdteA/exec" rel="noopener">← ระบบแข่งขัน</a><span>QR SCANNER</span></header>
+<h1>สแกนรายงานตัว</h1><div class="camera"><video id="video" playsinline muted aria-label="ภาพจากกล้อง"></video><div class="reticle"></div><span id="status" role="status" aria-live="polite">พร้อมสแกน</span></div>
+<div class="actions"><button id="start">เปิดกล้อง</button><button id="stop" class="secondary" disabled>หยุดกล้อง</button><label class="secondary file">เลือกรูป QR<input id="image" type="file" accept="image/*"></label></div>
+<form id="manual"><label for="code">รหัสทีม</label><div class="row"><input id="code" placeholder="CT-XXXXXXXX" maxlength="11" autocapitalize="characters" autocomplete="off" spellcheck="false" required pattern="CT-[0-9A-Fa-f]{8}"><button>ตรวจรหัส</button></div></form>
+<section id="result" hidden><small>รหัสที่อ่านได้</small><strong id="decoded"></strong><div class="actions"><button id="send" disabled>ส่งรหัสกลับ</button><button id="copy" class="secondary">คัดลอกรหัส</button><button id="again" class="secondary">สแกนต่อ</button></div></section><canvas id="canvas" hidden></canvas>
+</main><script src="jsQR.js"></script><script src="scanner.js"></script></body></html>
