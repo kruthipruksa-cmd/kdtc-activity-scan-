@@ -11,10 +11,12 @@ const HEADERS_={
  Students:['StudentID','Name','ClassID','Department','Level','EnrollStatus','ScanCode','SourceUpdatedAt'],
  Courses:['CourseID','CourseCode','Name','ClassID','TeacherID','TeacherEmail','Active','SourceReviewStatus','CreatedAt','Term'],
  Enrollments:['CourseID','StudentID','Status','UpdatedAt','ApprovedBy'],
- Sessions:['SessionID','CourseID','SessionDate','StartAt','PresentUntil','LateUntil','Status','TeacherID','ClosedAt','Topic'],
+ Sessions:['SessionID','CourseID','SessionDate','StartAt','PresentUntil','LateUntil','Status','TeacherID','ClosedAt','Topic','Periods'],
  Attendance:['AttendanceID','UniqueKey','SessionID','CourseID','StudentID','Status','ScanAt','InputMode','TeacherID','UpdatedAt','Note'],
  AuditLog:['EventID','At','ActorTeacherID','Action','Entity','Details'],
- Settings:['Key','Value','Description']
+ Settings:['Key','Value','Description'],
+ Referrals:['ReferralID','StudentID','StudentName','CourseID','CourseCode','TeacherID','Room','Department','AbsencePct','AttendancePct','RiskLevel','Reason','CreatedAt','Status','AdminReviewedBy','AdminReviewedAt','AdminNote','ExecutiveSentAt','ExecutiveSentBy','LastUpdatedAt'],
+ ReferralActions:['ActionID','ReferralID','At','ActorID','Role','Action','FromStatus','ToStatus','Note']
 };
 function prop_(k){return PropertiesService.getScriptProperties().getProperty(k)||''}
 function db_(){const id=prop_('TEACHER_SHEET_ID');if(!id)throw Error('ยังไม่ได้ตั้ง TEACHER_SHEET_ID');return SpreadsheetApp.openById(id)}
@@ -30,17 +32,42 @@ function hash_(s){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_2
 function rand_(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'')}
 function truth_(s){return String(s).toUpperCase()==='TRUE'}
 function teacher_(id){return rows_('Teachers').find(t=>t.TeacherID===id)}
+/** Activity SCAN Users is a read-only source of truth for role/activation. */
+function activityUser_(id){
+ const sheetId=prop_('ACTIVITY_USERS_SHEET_ID');
+ if(!sheetId)throw Error('ยังไม่ได้กำหนด ACTIVITY_USERS_SHEET_ID');
+ const sh=SpreadsheetApp.openById(sheetId).getSheetByName('Users');
+ if(!sh)throw Error('ไม่พบรายชื่อผู้ใช้งานของระบบกิจกรรม');
+ const last=sh.getLastRow();if(last<2)throw Error('ไม่มีผู้ใช้ในระบบกิจกรรม');
+ const list=sh.getRange(2,1,last-1,7).getDisplayValues();
+ const hit=list.find(x=>String(x[0]).trim().toUpperCase()===id);
+ if(!hit||String(hit[6]).toUpperCase()!=='TRUE')throw Error('ไม่พบผู้ใช้งานที่เปิดสิทธิ์');
+ const type=String(hit[2]).trim().toUpperCase();
+ const role=type==='ADMIN'?'ADMIN':type==='ACTIVITY'?'EXECUTIVE':type==='TEACHER'?'TEACHER':'';
+ if(!role)throw Error('สิทธิ์ผู้ใช้งานไม่รองรับ');
+ return {id,name:String(hit[1]),role,department:String(hit[3]||'')};
+}
+function actor_(id){
+ const legacy=activityUser_(id);
+ const t=rows_('Teachers').find(x=>x.HomeRoomUserID===id&&truth_(x.Active));
+ if(legacy.role==='TEACHER'&&!t)throw Error('กรุณาให้ผู้ดูแลจับคู่ครูผู้สอนกับบัญชี Home Room');
+ return {TeacherID:t?t.TeacherID:id,UserID:id,Name:legacy.name,Role:legacy.role,Department:legacy.department,AuthVersion:t?t.AuthVersion:'1'};
+}
 function auth_(token){
  if(typeof token!=='string'||!token||token.length>150)throw Error('กรุณาเข้าสู่ระบบ');
- const cache=CacheService.getScriptCache().get('TA_'+hash_(token));if(!cache)throw Error('หมดเวลาการเข้าสู่ระบบ กรุณาเข้าสู่ระบบอีกครั้ง');
- const parts=cache.split('|'),t=teacher_(parts[0]);
- if(!t||!truth_(t.Active)||t.AuthVersion!==parts[1])throw Error('สิทธิ์หมดอายุ กรุณาเข้าสู่ระบบใหม่');
- return t;
+ const cache=CacheService.getScriptCache().get('TA_'+hash_(token));
+ if(!cache)throw Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
+ const [userId,version]=cache.split('|'),actor=actor_(userId);
+ if(actor.AuthVersion!==version)throw Error('สิทธิ์หมดอายุ กรุณาเข้าสู่ระบบใหม่');
+ return actor;
+}
+function readOnlyExecutive_(actor){
+ if(actor.Role==='EXECUTIVE')throw Error('ผู้บริหารมีสิทธิ์ดูรายงาน ไม่สามารถเปลี่ยนผลเช็กชื่อได้');
 }
 function checkCourse_(token,id){
  const t=auth_(token),course=rows_('Courses').find(c=>c.CourseID===String(id));
  if(!course||!truth_(course.Active))throw Error('ไม่พบรายวิชาที่เปิดใช้');
- if(t.Role!=='ADMIN'&&course.TeacherID!==t.TeacherID)throw Error('ไม่มีสิทธิ์รายวิชานี้');
+ if(!['ADMIN','EXECUTIVE'].includes(t.Role)&&course.TeacherID!==t.TeacherID)throw Error('ไม่มีสิทธิ์รายวิชานี้');
  return {t,course};
 }
 function checkSession_(token,id){
@@ -58,11 +85,11 @@ function setSetting_(key,val){
 }
 function publicStatus(){return {ready:setting_('IMPORT_STATUS','')==='READY',authReady:!!(prop_('HOMEROOM_VERIFY_URL')&&prop_('HOMEROOM_SHARED_SECRET')),timeZone:TZ_,version:'1.1.0'}}
 function doGet(e){
- if(!e||e.parameter.mode!=='teacherBridge'||!/^[0-9a-f]{32,64}$/i.test(String(e.parameter.nonce||'')))
-  return HtmlService.createHtmlOutput('KDTC Teacher Attendance API. Open the GitHub Pages teacher interface.').setTitle('KDTC Teacher Attendance');
- const template=HtmlService.createTemplateFromFile('TeacherBridge');
- template.bridgeNonce=String(e.parameter.nonce);
- return template.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL).setTitle('KDTC Teacher Bridge');
+ // Apps Script is the PRIMARY application: all dashboards, roles and Sheets access.
+ // GitHub is a QR camera only, embedded via iframe in TeacherApp.html.
+ return HtmlService.createHtmlOutputFromFile('TeacherApp')
+   .setTitle('KDTC ครูผู้สอน — สรุปเวลาเรียน')
+   .addMetaTag('viewport','width=device-width, initial-scale=1');
 }
 /**
  * TRUSTED SERVER-TO-SERVER ADAPTER: Home Room must expose a private verifier
@@ -82,35 +109,33 @@ function verifyHomeRoom_(userId,credential){
  });
  if(response.getResponseCode()!==200)throw Error('ตรวจสอบบัญชี Home Room ไม่สำเร็จ');
  let result;try{result=JSON.parse(response.getContentText())}catch(_){throw Error('ระบบ Home Room ไม่ตอบผลตรวจสอบที่ถูกต้อง')}
- if(result.ok!==true||result.userId!==userId||result.active!==true||result.kind!=='TEACHER')throw Error('รหัสผู้ใช้หรือรหัสผ่าน Home Room ไม่ถูกต้อง');
+ if(result.ok!==true||result.userId!==userId||result.active!==true)throw Error('รหัสผู้ใช้หรือรหัสผ่าน Home Room ไม่ถูกต้อง');
  return result;
 }
 function login(id,pin){
  id=String(id||'').trim().toUpperCase();pin=String(pin||'');
- if(!/^U\d{3,4}$/.test(id)||!pin||pin.length>128)throw Error('กรอกรหัสครูและรหัสผ่านเดียวกับ Home Room');
- const t=rows_('Teachers').find(x=>x.HomeRoomUserID===id&&truth_(x.Active));
- if(!t)throw Error('บัญชีครูยังไม่ได้จับคู่กับ Home Room');
- if(t.LockedUntil&&Date.parse(t.LockedUntil)>Date.now())throw Error('ถูกจำกัดการเข้าใช้ชั่วคราว กรุณาลองใหม่ภายหลัง');
- try{verifyHomeRoom_(id,pin)}catch(e){
-  if(e.message.startsWith('ยังไม่เชื่อม')||e.message.startsWith('ลิงก์ตรวจสอบ')||e.message.startsWith('ตรวจสอบบัญชี Home Room ไม่สำเร็จ')||e.message.startsWith('ระบบ Home Room ไม่ตอบ'))throw e;
-  lock_(()=>{
-    const sh=tab_('Teachers'),fresh=teacher_(t.TeacherID),failed=Number(fresh.FailedAttempts||0)+1;
-    sh.getRange(fresh._row,9,1,2).setValues([[failed,failed>=5?new Date(Date.now()+15*60000).toISOString():'']]);
-  });
-  throw Error('รหัสผู้ใช้หรือรหัสผ่าน Home Room ไม่ถูกต้อง');
+ if(!/^U\d{3,4}$/.test(id)||!pin||pin.length>128)throw Error('กรุณาใช้บัญชีเดียวกับ Home Room');
+ const actor=actor_(id); // Verify ACTIVE and role against original activity Users.
+ const local=rows_('Teachers').find(x=>x.HomeRoomUserID===id);
+ if(local&&local.LockedUntil&&Date.parse(local.LockedUntil)>Date.now())throw Error('บัญชีถูกระงับชั่วคราว');
+ verifyHomeRoom_(id,pin); // Must validate credentials against original server, FAIL CLOSED.
+ if(local){
+  lock_(()=>tab_('Teachers').getRange(local._row,9,1,2).setValues([[0,'']]));
  }
- lock_(()=>{const sh=tab_('Teachers');sh.getRange(t._row,9,1,2).setValues([[0,'']])});
  const token=rand_();
- CacheService.getScriptCache().put('TA_'+hash_(token),t.TeacherID+'|'+t.AuthVersion,21600);
- audit_(t.TeacherID,'HOMEROOM_LOGIN',t.TeacherID,{source:'Home Room'});
- return {token,teacherId:t.TeacherID,name:t.Name,role:t.Role};
+ CacheService.getScriptCache().put('TA_'+hash_(token),id+'|'+actor.AuthVersion,21600);
+ audit_(id,'HOMEROOM_LOGIN',id,{role:actor.Role});
+ return {token,teacherId:actor.TeacherID,userId:id,name:actor.Name,role:actor.Role};
 }
-function me(token){const t=auth_(token);return {teacherId:t.TeacherID,name:t.Name,role:t.Role}}
+function me(token){
+ const t=auth_(token);
+ return {teacherId:t.TeacherID,userId:t.UserID,name:t.Name,role:t.Role};
+}
 function logout(token){if(typeof token==='string'&&token)CacheService.getScriptCache().remove('TA_'+hash_(token));return {ok:true}}
 function getCourses(token){
  const t=auth_(token);
  const enrollment=rows_('Enrollments');
- return rows_('Courses').filter(c=>truth_(c.Active)&&(t.Role==='ADMIN'||c.TeacherID===t.TeacherID)).map(c=>{
+ return rows_('Courses').filter(c=>truth_(c.Active)&&(['ADMIN','EXECUTIVE'].includes(t.Role)||c.TeacherID===t.TeacherID)).map(c=>{
    const rr=enrollment.filter(x=>x.CourseID===c.CourseID);
    return {courseId:c.CourseID,code:c.CourseCode,name:c.Name,classId:c.ClassID,teacherId:c.TeacherID,approved:rr.filter(x=>x.Status==='APPROVED').length,suggested:rr.filter(x=>x.Status==='SUGGESTED').length,review:c.SourceReviewStatus};
  });
@@ -123,7 +148,8 @@ function getRoster(token,courseId){
 }
 function approveRoster(token,courseId){
  return lock_(()=>{
-  const {t}=checkCourse_(token,courseId),s=tab_('Enrollments'),rows=rows_('Enrollments');
+  const {t}=checkCourse_(token,courseId);readOnlyExecutive_(t);
+  const s=tab_('Enrollments'),rows=rows_('Enrollments');
   const candidates=rows.filter(x=>x.CourseID===courseId&&x.Status==='SUGGESTED');
   if(!candidates.length)return {approved:0};
   const studentIds=new Set(rows_('Students').filter(x=>x.EnrollStatus==='ACTIVE').map(x=>x.StudentID));
@@ -134,25 +160,26 @@ function approveRoster(token,courseId){
   audit_(t.TeacherID,'APPROVE_ROSTER',courseId,{count});return {approved:count};
  });
 }
-function startSession(token,courseId,topic){
+function startSession(token,courseId,topic,periods){
  return lock_(()=>{
-  const {t}=checkCourse_(token,courseId);
+  const {t}=checkCourse_(token,courseId);readOnlyExecutive_(t);
   if(!rows_('Enrollments').some(x=>x.CourseID===courseId&&x.Status==='APPROVED'))throw Error('ต้องตรวจสอบและยืนยันรายชื่อนักเรียนก่อน');
   const active=rows_('Sessions').find(s=>s.CourseID===courseId&&s.Status==='OPEN');
   if(active)return sessionView_(active);
   const p=Math.max(0,Math.min(120,Number(setting_('PRESENT_MINUTES',10))||10));
   const l=Math.max(p+1,Math.min(240,Number(setting_('LATE_MINUTES',25))||25));
   const time=new Date(),id=rand_();
-  const row=[id,courseId,Utilities.formatDate(time,TZ_,'yyyy-MM-dd'),time.toISOString(),new Date(time.getTime()+p*60000).toISOString(),new Date(time.getTime()+l*60000).toISOString(),'OPEN',t.TeacherID,'',String(topic||'').slice(0,200)];
+  const n=Number(periods||1);if(!Number.isInteger(n)||n<1||n>9)throw Error('จำนวนคาบต้องอยู่ระหว่าง 1 ถึง 9');
+  const row=[id,courseId,Utilities.formatDate(time,TZ_,'yyyy-MM-dd'),time.toISOString(),new Date(time.getTime()+p*60000).toISOString(),new Date(time.getTime()+l*60000).toISOString(),'OPEN',t.TeacherID,'',String(topic||'').slice(0,200),n];
   tab_('Sessions').appendRow(row);
   audit_(t.TeacherID,'START_SESSION',id,{courseId});return sessionView_(Object.fromEntries(HEADERS_.Sessions.map((h,i)=>[h,row[i]])));
  });
 }
-function sessionView_(s){return {sessionId:s.SessionID,courseId:s.CourseID,date:s.SessionDate,startAt:s.StartAt,presentUntil:s.PresentUntil,lateUntil:s.LateUntil,status:s.Status,topic:s.Topic}}
+function sessionView_(s){return {sessionId:s.SessionID,courseId:s.CourseID,date:s.SessionDate,startAt:s.StartAt,presentUntil:s.PresentUntil,lateUntil:s.LateUntil,status:s.Status,topic:s.Topic,periods:Math.max(1,Number(s.Periods)||1)}}
 function getOpenSession(token,courseId){checkCourse_(token,courseId);const x=rows_('Sessions').find(r=>r.CourseID===courseId&&r.Status==='OPEN');return x?sessionView_(x):null}
 function scanStudent(token,sessionId,raw){
  return lock_(()=>{
-  const {session,t,course}=checkSession_(token,sessionId);
+  const {session,t,course}=checkSession_(token,sessionId);readOnlyExecutive_(t);
   if(session.Status!=='OPEN')throw Error('คาบเรียนปิดแล้ว');
   const text=String(raw||'').trim();
   if(text.length>150)throw Error('รหัสยาวเกินไป');
@@ -172,7 +199,7 @@ function scanStudent(token,sessionId,raw){
 }
 function closeSession(token,sessionId){
  return lock_(()=>{
-  const {session,t,course}=checkSession_(token,sessionId);
+  const {session,t,course}=checkSession_(token,sessionId);readOnlyExecutive_(t);
   if(session.Status==='CLOSED')return {alreadyClosed:true,...getSessionStats_(sessionId)};
   if(session.Status!=='OPEN')throw Error('สถานะคาบไม่ถูกต้อง');
   const approved=rows_('Enrollments').filter(e=>e.CourseID===course.CourseID&&e.Status==='APPROVED');
@@ -224,7 +251,7 @@ function updateAttendance(token,sessionId,studentId,newStatus,note){
   const reason=String(note||'').trim().slice(0,250);
   if(!['PRESENT','LATE','ABSENT','LEAVE'].includes(newStatus))throw Error('สถานะไม่ถูกต้อง');
   if(reason.length<5)throw Error('ระบุเหตุผลแก้ไขอย่างน้อย 5 ตัวอักษร');
-  const {session,t,course}=checkSession_(token,sessionId);
+  const {session,t,course}=checkSession_(token,sessionId);readOnlyExecutive_(t);
   if(!['OPEN','CLOSED'].includes(session.Status))throw Error('ไม่สามารถแก้ไขคาบนี้ได้');
   studentId=String(studentId||'').trim();
   if(!rows_('Enrollments').some(e=>e.CourseID===course.CourseID&&e.StudentID===studentId&&e.Status==='APPROVED'))throw Error('นักเรียนไม่ได้รับการยืนยันในรายวิชา');
