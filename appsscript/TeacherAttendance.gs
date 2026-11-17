@@ -14,7 +14,8 @@ const HEADERS_={
  Sessions:['SessionID','CourseID','SessionDate','StartAt','PresentUntil','LateUntil','Status','TeacherID','ClosedAt','Topic','Periods','ScheduleID'],
  Attendance:['AttendanceID','UniqueKey','SessionID','CourseID','StudentID','Status','ScanAt','InputMode','TeacherID','UpdatedAt','Note'],
  AuditLog:['EventID','At','ActorTeacherID','Action','Entity','Details'],
- Settings:['Key','Value','Description'],
+ StudentAddRequests:['RequestID','StudentID','Name','ClassID','Department','Level','CourseID','TeacherID','CreatedAt','Status','ReviewedBy','ReviewedAt','Note'],
+  Settings:['Key','Value','Description'],
  TeachingSchedule:['ScheduleID','CourseID','TeacherID','DayOfWeek','StartTime','EndTime','Periods','Room','Topic','AutoOpen','AutoClose','Active','UpdatedAt'],
  ReferralFollowUps:['FollowUpID','ReferralID','StudentID','ActorID','ActionAt','ActionType','Note','NextCheckDate','Status','UpdatedAt'],
  Referrals:['ReferralID','StudentID','StudentName','CourseID','CourseCode','TeacherID','Room','Department','AbsencePct','AttendancePct','RiskLevel','Reason','CreatedAt','Status','AdminReviewedBy','AdminReviewedAt','AdminNote','ExecutiveSentAt','ExecutiveSentBy','LastUpdatedAt'],
@@ -108,7 +109,7 @@ function setSetting_(key,val){
 }
 function publicStatus(){return {ready:setting_('IMPORT_STATUS','')==='READY',authReady:!!(prop_('HOMEROOM_VERIFY_URL')&&prop_('HOMEROOM_SHARED_SECRET')),timeZone:TZ_,version:'1.1.0'}}
 function include_(name){
- if(name!=='TeacherExtras')throw Error('ไม่ได้รับอนุญาตให้แทรกไฟล์นี้');
+ if(!['TeacherExtras','TeacherSelfService'].includes(name))throw Error('ไม่ได้รับอนุญาตให้แทรกไฟล์นี้');
  return HtmlService.createHtmlOutputFromFile(name).getContent();
 }
 function doGet(e){
