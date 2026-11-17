@@ -1,62 +1,50 @@
-# KDTC Teacher Attendance • separate subsystem
+# KDTC TEACHER ATTENDANCE — ครูผู้สอน
 
-This is an **isolated** course-attendance app added to the existing GitHub repository. It does not change the existing scanner source or database.
+Status: code updated on GitHub. NOT YET deployed or verified on the real Apps Script project. Legacy activity scanner remains unchanged.
 
-## Files
+## User requirements
+- Login with the SAME user ID and password/PIN as Home Room (such as U004), without storing or setting another PIN.
+- Scan attendance for a course and class session.
+- Teacher may correct any scanned/recorded result to PRESENT (มา), LATE (สาย), ABSENT (ขาด), or LEAVE (ลา), during or after the session.
+- Every correction requires a reason and writes an audit entry with teacher, timestamp, before/after status. It does not erase the original scan timestamp.
+- Missing approved students become ABSENT on session close. LEAVE does not count as PRESENT or ABSENT; the default attendance percentage is (PRESENT+LATE)/closed sessions.
 
-- \`docs/teacher/\` — static mobile/desktop interface, served free via GitHub Pages.
-- \`appsscript/TeacherAttendance.gs\` — new standalone Google Apps Script backend.
-- \`appsscript/TeacherBridge.html\` — iframe RPC bridge for static GitHub Pages UI.
+## Authorized project targets
+Teacher Apps Script project: https://script.google.com/u/0/home/projects/1uXJoXc2Fp--ozK5nKQcGaqeVYW5TxXIXmfOLk_WkeKHO68MPoeRxwU18/edit
+New data Sheet: https://docs.google.com/spreadsheets/d/19fSg7LPl-7u14Owomg1hifsJ6kQgafXcoAEYxGVOwaI/edit
+Read-only source: https://docs.google.com/spreadsheets/d/18VmMX7nrE9jKEBbL9qsasS5s-sYeJRhfclRb0llIOvw/edit
+GitHub UI: docs/teacher/ .
+Backend: appsscript/TeacherAttendance.gs and appsscript/TeacherBridge.html .
 
-Do not add student records, teacher PINs, salts, hashes or private Google Sheets URLs to a public GitHub repository.
+## Important privacy gate
+The NEW destination Sheet was still shared as ANYONE WITH LINK = WRITER on last check. Change this to Restricted before importing student data. The Apps Script installer attempts to enforce private sharing and refuses to import unless it is private.
 
-## Setup (owner must perform once)
+## Installation
+1. In the NEW Apps Script project, inspect/backup files before editing; add TeacherAttendance.gs and an HTML file named TeacherBridge. Do NOT overwrite the old activity project's code.
+2. Set Script Properties (server-side, NEVER in GitHub):
+   TEACHER_SHEET_ID = new destination Sheet ID
+   SOURCE_SHEET_ID = read-only CARE NEXUS source Sheet ID
+   BOOTSTRAP_ADMIN_ID = T004 (only local permission, not a password)
+   HOMEROOM_VERIFY_URL = authenticated existing Home Room verifier Apps Script /exec
+   HOMEROOM_SHARED_SECRET = strong random secret (minimum 24 chars)
+3. Run setupFromSource_ using a temporary editor-only wrapper function once after privacy is restricted. Inspect imported counts (source reference: 388 students, 36 teachers, 195 courses/classes, 2196 suggested enrollments); all SUGGESTED rosters require teacher approval.
+4. Delete the privileged temporary wrapper before deploying.
+5. Home Room must expose a private server-side verifier that uses its EXISTING login function and supports:
+   POST JSON action=KDTC_VERIFY_HOMEROOM_V1, userId=U004, credential=entered Home Room password/PIN, sharedSecret=server side secret
+   reply JSON {ok:true,userId:"U004",active:true,kind:"TEACHER"} after REAL validation.
+   Failed validation replies ok:false and never reveals password/hash.
+   It is NOT verified that Home Room currently exposes this action. Safely integrate after inspecting the REAL login code and existing doPost; never replace current routes.
+6. Deploy this teacher project's Web App, run it as owner with required scopes; use its distinct /exec URL in the GitHub Pages teacher UI. All subsequent teacher calls have server-side access checks. GitHub Pages host may need Settings > Pages > main:/docs enabled.
 
-1. Use the **new, separate Google Sheet**. Its nine headers/tabs have already been prepared: Teachers, Students, Courses, Enrollments, Sessions, Attendance, AuditLog, Settings, Guide.
-2. The new sheet was found to be shared as **anyone with link can edit**. **Restrict sharing to owner/authorized staff before import or real use.** The installer also attempts to enforce Google Drive PRIVATE access and aborts if it cannot verify this.
-3. In the new sheet, choose Extensions → Apps Script. This creates an independent script project bound to the new sheet. Keep the legacy activity Apps Script untouched.
-4. Replace the default Code.gs content with \`TeacherAttendance.gs\` and add an HTML file named \`TeacherBridge\` containing the code from \`TeacherBridge.html\`.
-5. Apps Script Project Settings → Script Properties: set **TEACHER_SHEET_ID**, **SOURCE_SHEET_ID**, **BOOTSTRAP_ADMIN_ID** (e.g. T004), and **BOOTSTRAP_ADMIN_PIN** (a newly chosen 8–12 digit number, not a PIN from the activity system). IDs are supplied privately by the owner and should not be committed to GitHub.
-6. Create a temporary file \`InstallOnce.gs\` in that Apps Script project:
-   \`\`\`js
-   function runTeacherInstallOnce() {
-     const result = setupFromSource_();
-     const admin = bootstrapAdmin_();
-     Logger.log(JSON.stringify({result,admin}));
-   }
-   \`\`\`
-7. **Run \`runTeacherInstallOnce\` from the Apps Script editor** and grant the owner permissions. Confirm data counts (388 students, 36 teachers, 195 courses, 2,196 suggested enrolments based on the 17 Nov 2026 source). Check the destination sheet access is **Restricted** and that original source tabs were not changed.
-8. **DELETE the temporary \`InstallOnce.gs\` file** before deployment: it is a privileged initializer that must not be callable through the live web app. Clear the bootstrap PIN property; the private bootstrap function also clears it upon success.
-9. Deploy → New deployment → Web app → Execute as **Me** → Who has access **Anyone**. Use a separate URL from the original activity scanner. This web app is publicly reachable, but all attendance methods require server-verified teacher authentication.
-10. Use the generated **/exec** URL in \`docs/teacher/\` → connection settings. No access token or PIN is stored in the GitHub files. PIN is kept only transiently in the browser form, and authenticated session tokens are stored in sessionStorage.
-11. On GitHub Settings → Pages set branch \`main\`, folder \`/docs\` if this is not already enabled. Then visit \`https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/\`.
-12. Log in as the bootstrap admin and set each teacher's new PIN. Teachers must review and approve the suggested course roster before they can open a class session. Test manual student ID, camera QR, duplicate scan, late scan, overdue scan, close-to-absent, and reporting.
+## Tests
+- One Home Room identity matched to a new Teachers.HomeRoomUserID (e.g. U004 -> T004), without copying old password/hash.
+- Teacher A cannot view/modify a course of teacher B.
+- Approval required for suggested enrollment.
+- On-time, late, overdue scan; duplicate scan, duplicate manual edit.
+- Correction from scanned มา -> ลา and ลา -> สาย, in OPEN and CLOSED sessions, with reason.
+- Close session marks only unrecorded approved students ABSENT, preserving leave.
+- Report displays มา/สาย/ขาด/ลา, calculates percentage from CLOSED sessions.
+- Original activity App Script and Sheets untouched.
 
-### Status mapping and operational rules
-
-- \`Students.StudentID\`: full student ID. QR input may also match the optional \`ScanCode\` **only when unique**. The existing four-digit activity QR code cannot be assumed unique.
-- \`Enrollments.Status=SUGGESTED\` is preserved from the source; there is **no automatic approval**.
-- A session is created per course/class, with server timestamps in \`Asia/Bangkok\`. Defaults: on time within 10 minutes, late until 25 minutes, then absent.
-- Duplicate scans do not append a second attendance row. The \`UniqueKey\` is session ID + student ID.
-- Closing a session generates \`ABSENT\` records for students with approved enrollment and no previous record.
-- Percentages are calculated from **closed sessions** only.
-- Changes of attendance after closing require an explanation and are written to AuditLog.
-- Each teacher accesses only assigned courses; admin can see all courses. New PINs are unrelated to the old system.
-
-### Adding the menu to the existing activity dashboard
-
-Once tested, add **one role-protected link/button** to the legacy web app home menu, without changing its attendance tables or any current scanner route.
-
-\`\`\`html
-<a href="https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/"
-   target="_blank" rel="noopener noreferrer">ครูผู้สอน</a>
-\`\`\`
-
-This repository **does not deploy or modify the legacy Apps Script app**. A developer with authorized Apps Script project access must make and test that one menu-only change.
-
-### Scope and limitations
-
-- This is a code-complete starting implementation, **not yet production-deployed or end-to-end tested**.
-- Web App URL, current GitHub Pages publishing, teacher provisioning and secure data import require owner-side actions.
-- GitHub Pages is public static hosting; do not embed student/teacher data or Google credentials in it.
-- Backup source data before any future system migration. Keep all original source sheets read-only.
+## NOT YET COMPLETE
+No Apps Script API connector is exposed for direct editor mutation here, so the actual supplied project has not yet received or deployed the new code. Home Room verifier API contract must be confirmed/implemented in its existing backend. Do not represent credential reuse or live scanning as working until both are verified.
