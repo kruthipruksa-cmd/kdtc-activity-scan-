@@ -68,10 +68,13 @@ function activityUser_(id){
  return {id,name:String(hit[1]),role,department:String(hit[4]||'')};
 }
 function actor_(id){
- const legacy=activityUser_(id);
- const t=rows_('Teachers').find(x=>x.HomeRoomUserID===id&&truth_(x.Active));
- if(legacy.role==='TEACHER'&&!t)throw Error('กรุณาให้ผู้ดูแลจับคู่ครูผู้สอนกับบัญชี Home Room');
- return {TeacherID:t?t.TeacherID:id,UserID:id,Name:legacy.name,Role:legacy.role,Department:legacy.department,AuthVersion:t?t.AuthVersion:'1'};
+ return cachedActor_(id,()=>{
+  const legacy=activityUser_(id);
+  const t=rows_('Teachers').find(x=>x.HomeRoomUserID===id&&truth_(x.Active));
+  if(legacy.role==='TEACHER'&&!t)throw Error('กรุณาให้ผู้ดูแลจับคู่ครูผู้สอนกับบัญชี Home Room');
+  return {TeacherID:t?t.TeacherID:id,UserID:id,Name:legacy.name,Role:legacy.role,
+   Department:legacy.department,AuthVersion:t?t.AuthVersion:'1'};
+ });
 }
 function auth_(token){
  if(typeof token!=='string'||!token||token.length>150)throw Error('กรุณาเข้าสู่ระบบ');
@@ -210,23 +213,22 @@ function scannerCode_(raw){
  return String(valid[0][0]); // full StudentID
 }
 function scanStudent(token,sessionId,raw){
+ // Keep the critical section short: one indexed lookup + one atomic append.
+ // Session validation and deduplication both occur under the same script lock.
  return lock_(()=>{
   const {session,t,course}=checkSession_(token,sessionId);readOnlyExecutive_(t);
   if(session.Status!=='OPEN')throw Error('คาบเรียนปิดแล้ว');
-  const text=String(raw||'').trim();
-  if(text.length>150)throw Error('รหัสยาวเกินไป');
-  const scanCode=scannerCode_(text);
-  const matches=rows_('Students').filter(s=>s.StudentID===scanCode||(s.ScanCode&&s.ScanCode===scanCode));
-  if(matches.length!==1)throw Error(matches.length?'รหัสสแกนซ้ำกับนักเรียนหลายคน':'ไม่พบรหัสนักเรียน กรุณาใช้รหัสนักเรียนเต็ม');
-  const s=matches[0];
-  if(s.EnrollStatus!=='ACTIVE')throw Error('นักเรียนไม่ได้อยู่ในสถานะกำลังศึกษา');
-  if(!rows_('Enrollments').some(e=>e.CourseID===course.CourseID&&e.StudentID===s.StudentID&&e.Status==='APPROVED'))throw Error('นักเรียนยังไม่ได้ลงทะเบียนหรือยืนยันในรายวิชานี้');
-  const unique=sessionId+'|'+s.StudentID;
-  const existing=rows_('Attendance').find(x=>x.UniqueKey===unique);
-  if(existing)return {ok:true,duplicate:true,name:s.Name,classId:s.ClassID,status:existing.Status,scanAt:existing.ScanAt};
-  const when=new Date(),status=when.getTime()<=Date.parse(session.PresentUntil)?'PRESENT':when.getTime()<=Date.parse(session.LateUntil)?'LATE':'ABSENT';
-  tab_('Attendance').appendRow([rand_(),unique,sessionId,course.CourseID,s.StudentID,status,when.toISOString(),'QR_OR_MANUAL',t.TeacherID,when.toISOString(),'']);
-  return {ok:true,duplicate:false,name:s.Name,classId:s.ClassID,status,scanAt:when.toISOString()};
+  const student=lookupFastScan_(raw,course.CourseID);
+  const key=sessionId+'|'+student.id,existing=findAttendanceByKey_(key);
+  if(existing)return {ok:true,duplicate:true,name:student.name,classId:student.classId,
+    status:existing.status,scanAt:existing.scanAt};
+  const now=new Date(),epoch=now.getTime();
+  const status=epoch<=Date.parse(session.PresentUntil)?'PRESENT':
+   epoch<=Date.parse(session.LateUntil)?'LATE':'ABSENT';
+  tab_('Attendance').appendRow([rand_(),key,sessionId,course.CourseID,student.id,
+    status,now.toISOString(),'QR_OR_MANUAL',t.TeacherID,now.toISOString(),'']);
+  // The active scan card is immediate. Closed-only analytics cache need not refresh for an OPEN session.
+  return {ok:true,duplicate:false,name:student.name,classId:student.classId,status,scanAt:now.toISOString()};
  });
 }
 function closeSession(token,sessionId){
@@ -282,13 +284,13 @@ function updateAttendance(token,sessionId,studentId,newStatus,note){
   if(!['OPEN','CLOSED'].includes(session.Status))throw Error('ไม่สามารถแก้ไขคาบนี้ได้');
   studentId=String(studentId||'').trim();
   if(!rows_('Enrollments').some(e=>e.CourseID===course.CourseID&&e.StudentID===studentId&&e.Status==='APPROVED'))throw Error('นักเรียนไม่ได้รับการยืนยันในรายวิชา');
-  const unique=sessionId+'|'+studentId,entry=rows_('Attendance').find(x=>x.UniqueKey===unique);
-  const sh=tab_('Attendance'),changedAt=now_(),previous=entry?entry.Status:'NOT_RECORDED';
+  const unique=sessionId+'|'+studentId,entry=findAttendanceByKey_(unique);
+  const sh=tab_('Attendance'),changedAt=now_(),previous=entry?entry.status:'NOT_RECORDED';
   if(previous===newStatus) return {ok:true,unchanged:true,before:previous,after:newStatus};
   if(entry){
    // Keep original scan timestamp; change only current status / editor and note.
-   sh.getRange(entry._row,6).setValue(newStatus);
-   sh.getRange(entry._row,9,1,3).setValues([[t.TeacherID,changedAt,reason]]);
+   sh.getRange(entry.row,6).setValue(newStatus);
+   sh.getRange(entry.row,9,1,3).setValues([[t.TeacherID,changedAt,reason]]);
   }else{
    sh.appendRow([rand_(),unique,sessionId,course.CourseID,studentId,newStatus,'','MANUAL',t.TeacherID,changedAt,reason]);
   }
