@@ -261,6 +261,7 @@ function renderMonitor(){
  for(const x of list){
   const tr=row(body,'td',[x.studentId,x.studentName,x.courseCode,x.room,pct(x.absencePercent),pct(x.attendancePercent)]);
   const td=elem('td');td.append(pill(x.risk));tr.append(td);
+  const open=elem('button','ดู 360','alt slim');open.style.marginLeft='4px';open.onclick=()=>window.openStudent360(x.studentId);tr.children[1].append(open);
   const action=elem('td');if(x.risk==='PROBLEM'&&APP.user.role!=='EXECUTIVE'){const btn=elem('button','ส่งต่อ','red slim');btn.onclick=()=>sendReferral(x);action.append(btn)}tr.append(action);
  }
  tab.append(head,body);parent.append(tab);
@@ -273,8 +274,14 @@ async function loadReferrals(){
   for(const x of items){
    const tr=row(body,'td',[x.studentName,x.courseCode+' • '+x.room,pct(x.absentPercent),x.reason,STATES[x.status]||x.status]);
    const td=elem('td');
+   const timeline=elem('button','ดูประวัติ','alt slim');timeline.style.margin='2px';
+   timeline.onclick=()=>window.openReferralTimeline(x.id);td.append(timeline);
+   if(x.overdue){const alert=elem('span','เกินกำหนดติดตาม','pill risk');td.append(alert)}
    if(APP.user.role==='ADMIN'){
-    const options=x.status==='NEW'?[['REVIEW','รับเรื่อง'],['FORWARD','ส่งผู้บริหาร']]:x.status==='IN_REVIEW'?[['FORWARD','ส่งผู้บริหาร'],['RESOLVE','ปิดเรื่อง']]:x.status==='FORWARDED'?[['RESOLVE','ปิดเรื่อง']]:[];
+    const options=x.status==='NEW'?[['REVIEW','รับเรื่อง'],['FORWARD','ส่งผู้บริหาร']]:
+     x.status==='IN_REVIEW'?[['FORWARD','ส่งผู้บริหาร'],['RESOLVE','ปิดเรื่อง']]:
+     x.status==='FORWARDED'?[['FOLLOW_UP','ติดตามผล'],['RESOLVE','ปิดเรื่อง']]:
+     x.status==='FOLLOW_UP'?[['RESOLVE','ปิดเรื่อง']]:[];
     for(const [action,title] of options){
      const btn=elem('button',title,'slim '+(action==='FORWARD'?'gold':'alt'));btn.style.margin='2px';
      btn.onclick=async()=>{
