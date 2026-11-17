@@ -88,6 +88,23 @@ function getTodayTeaching(token){
   }).sort((a,b)=>a.start.localeCompare(b.start))
  };
 }
+/** Reminder: list open sessions that may have been forgotten, without auto-closing them. */
+function getOpenSessionWarnings(token){
+ const actor=auth_(token),now=Date.now();
+ const courses=new Map(rows_('Courses').map(x=>[x.CourseID,x]));
+ const open=rows_('Sessions').filter(x=>x.Status==='OPEN'&&
+   (actor.Role!=='TEACHER'||x.TeacherID===actor.TeacherID));
+ const warnings=[];
+ for(const session of open){
+  const elapsed=Math.round((now-Date.parse(session.StartAt))/60000);
+  if(!Number.isFinite(elapsed)||elapsed<180)continue;
+  const course=courses.get(session.CourseID);
+  warnings.push({sessionId:session.SessionID,courseId:session.CourseID,
+   courseCode:course?.CourseCode||'',room:course?.ClassID||'',
+   startAt:session.StartAt,elapsedMinutes:elapsed,periods:periodCount_(session)});
+ }
+ return warnings.sort((a,b)=>b.elapsedMinutes-a.elapsedMinutes).slice(0,40);
+}
 /**
  * OWNER ONLY: run once in the Apps Script editor to enable/repair one 5-min trigger.
  * To stop, use ScriptApp.getProjectTriggers() and remove only tickTeachingSchedule_.
