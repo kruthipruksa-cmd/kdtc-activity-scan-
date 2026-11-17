@@ -98,7 +98,8 @@ function getDashboard(token){
   absencePercent:percent_(weighted.absent,weighted.periods),
   problem:persons.filter(p=>riskLevel_(p.absent,p.units)==='PROBLEM').length,
   risk:persons.filter(p=>riskLevel_(p.absent,p.units)==='RISK').length,
-  normal:persons.filter(p=>riskLevel_(p.absent,p.units)==='NORMAL').length
+  normal:persons.filter(p=>riskLevel_(p.absent,p.units)==='NORMAL').length,
+   earlyPotential:new Set(detail.filter(r=>r.risk==='NORMAL'&&r.absencePercent!==null&&r.absencePercent>=7).map(r=>r.studentId)).size
  };
  return {actor:{id:actor.UserID,name:actor.Name,role:actor.Role,teacherId:actor.TeacherID},
   aggregate,courses,
