@@ -195,13 +195,25 @@ function startSession(token,courseId,topic,periods){
 }
 function sessionView_(s){return {sessionId:s.SessionID,courseId:s.CourseID,date:s.SessionDate,startAt:s.StartAt,presentUntil:s.PresentUntil,lateUntil:s.LateUntil,status:s.Status,topic:s.Topic,periods:Math.max(1,Number(s.Periods)||1)}}
 function getOpenSession(token,courseId){checkCourse_(token,courseId);const x=rows_('Sessions').find(r=>r.CourseID===courseId&&r.Status==='OPEN');return x?sessionView_(x):null}
+function scannerCode_(raw){
+ const value=String(raw||'').trim();
+ const match=value.toUpperCase().match(/^K\|(\d{4})\|([A-Z0-9]{6,20})$/);
+ if(!match)return value.replace(/^STUDENT:/i,'').trim();
+ // Validate the original activity QR's code + token against read-only SCAN source.
+ const sh=SpreadsheetApp.openById(prop_('SCAN_SOURCE_SHEET_ID')).getSheetByName('STUDENTS');
+ if(!sh)throw Error('ไม่พบแท็บ STUDENTS ของระบบสแกน');
+ const rows=sh.getLastRow()>1?sh.getRange(2,1,sh.getLastRow()-1,8).getDisplayValues():[];
+ const valid=rows.filter(r=>String(r[1])===match[1]&&String(r[7]).toUpperCase()===match[2]&&String(r[6]).toUpperCase()==='TRUE');
+ if(valid.length!==1)throw Error('QR ไม่ถูกต้องหรือบัญชีนักเรียนไม่เปิดใช้');
+ return String(valid[0][0]); // full StudentID
+}
 function scanStudent(token,sessionId,raw){
  return lock_(()=>{
   const {session,t,course}=checkSession_(token,sessionId);readOnlyExecutive_(t);
   if(session.Status!=='OPEN')throw Error('คาบเรียนปิดแล้ว');
   const text=String(raw||'').trim();
   if(text.length>150)throw Error('รหัสยาวเกินไป');
-  const scanCode=text.replace(/^STUDENT:/i,'').trim();
+  const scanCode=scannerCode_(text);
   const matches=rows_('Students').filter(s=>s.StudentID===scanCode||(s.ScanCode&&s.ScanCode===scanCode));
   if(matches.length!==1)throw Error(matches.length?'รหัสสแกนซ้ำกับนักเรียนหลายคน':'ไม่พบรหัสนักเรียน กรุณาใช้รหัสนักเรียนเต็ม');
   const s=matches[0];
@@ -300,7 +312,7 @@ function setupFromSource_(){
  const props=PropertiesService.getScriptProperties();
  if(!prop_('TEACHER_SHEET_ID')||!prop_('SOURCE_SHEET_ID'))throw Error('ใส่ Script Properties ของชีทใหม่และต้นทางก่อน');
  if(prop_('TEACHER_SHEET_ID')===prop_('SOURCE_SHEET_ID'))throw Error('ห้ามใช้ชีทต้นทางเป็นชีทปลายทาง');
- ensurePrivate_();
+ ensurePrivate_();requireRestrictedSheets_();
  return lock_(()=>{
   const source=SpreadsheetApp.openById(prop_('SOURCE_SHEET_ID'));
   const read=name=>{const sh=source.getSheetByName(name);if(!sh)throw Error('ไม่พบตารางต้นทาง '+name);return sh.getDataRange().getDisplayValues().slice(1).filter(r=>r[0])};
@@ -320,7 +332,25 @@ function setupFromSource_(){
    teachersSheet.getRange(teacher._row,13).setValue(matches[0]);mapped++;
   }
   imported.HomeRoomMapped=mapped;
-  imported.Students=appendMissing_('Students',students.map(r=>[r[0],r[1],r[2],r[3],r[4],r[6],'',r[7]]),[0]);
+  // Scanner source STUDENTS supplies unique 4-digit code4, not a PIN or auth hash.
+  const scannerSheet=SpreadsheetApp.openById(prop_('SCAN_SOURCE_SHEET_ID')).getSheetByName('STUDENTS');
+  if(!scannerSheet)throw Error('ไม่พบแท็บ STUDENTS ในชีทสแกน');
+  const rawCodes=scannerSheet.getLastRow()>1?scannerSheet.getRange(2,1,scannerSheet.getLastRow()-1,7).getDisplayValues():[];
+  const activeCodes=rawCodes.filter(r=>String(r[6]).toUpperCase()==='TRUE');
+  const activeById=new Map(activeCodes.map(r=>[String(r[0]),String(r[1])]));
+  const codes=activeCodes.map(r=>String(r[1]));
+  if(new Set(codes).size!==codes.length||codes.some(c=>!/^\d{4}$/.test(c)))throw Error('รหัสสแกน code4 ไม่ครบ 4 หลักหรือมีรหัสซ้ำ ยกเลิกการนำเข้า');
+  imported.Students=appendMissing_('Students',students.map(r=>[r[0],r[1],r[2],r[3],r[4],r[6],activeById.get(String(r[0]))||'',r[7]]),[0]);
+  // Fill empty ScanCode only. Existing custom ScanCode and attendance data remain unchanged.
+  let codeLinked=0;
+  const studentSheet=tab_('Students');
+  for(const student of rows_('Students')){
+    if(student.ScanCode)continue;
+    const code=activeById.get(student.StudentID);
+    if(!code)continue;
+    studentSheet.getRange(student._row,7).setValue(code);codeLinked++;
+  }
+  imported.ScannerCodesLinked=codeLinked;
   imported.Courses=appendMissing_('Courses',courses.map(r=>{
    const sourceId=String(r[0]).match(/^AC69_2_(T\d+-C\d+)_/),reviewRow=sourceId?reviewMap.get(sourceId[1]):null;
    const teacherId=reviewRow?reviewRow[1]:(sourceId?sourceId[1].split('-')[0]:'');
