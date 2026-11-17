@@ -11,10 +11,12 @@ const HEADERS_={
  Students:['StudentID','Name','ClassID','Department','Level','EnrollStatus','ScanCode','SourceUpdatedAt'],
  Courses:['CourseID','CourseCode','Name','ClassID','TeacherID','TeacherEmail','Active','SourceReviewStatus','CreatedAt','Term'],
  Enrollments:['CourseID','StudentID','Status','UpdatedAt','ApprovedBy'],
- Sessions:['SessionID','CourseID','SessionDate','StartAt','PresentUntil','LateUntil','Status','TeacherID','ClosedAt','Topic','Periods'],
+ Sessions:['SessionID','CourseID','SessionDate','StartAt','PresentUntil','LateUntil','Status','TeacherID','ClosedAt','Topic','Periods','ScheduleID'],
  Attendance:['AttendanceID','UniqueKey','SessionID','CourseID','StudentID','Status','ScanAt','InputMode','TeacherID','UpdatedAt','Note'],
  AuditLog:['EventID','At','ActorTeacherID','Action','Entity','Details'],
  Settings:['Key','Value','Description'],
+ TeachingSchedule:['ScheduleID','CourseID','TeacherID','DayOfWeek','StartTime','EndTime','Periods','Room','Topic','AutoOpen','AutoClose','Active','UpdatedAt'],
+ ReferralFollowUps:['FollowUpID','ReferralID','StudentID','ActorID','ActionAt','ActionType','Note','NextCheckDate','Status','UpdatedAt'],
  Referrals:['ReferralID','StudentID','StudentName','CourseID','CourseCode','TeacherID','Room','Department','AbsencePct','AttendancePct','RiskLevel','Reason','CreatedAt','Status','AdminReviewedBy','AdminReviewedAt','AdminNote','ExecutiveSentAt','ExecutiveSentBy','LastUpdatedAt'],
  ReferralActions:['ActionID','ReferralID','At','ActorID','Role','Action','FromStatus','ToStatus','Note']
 };
@@ -175,7 +177,7 @@ function approveRoster(token,courseId){
   candidates.forEach(x=>{if(!studentIds.has(x.StudentID))return;
    s.getRange(x._row,3,1,3).setValues([['APPROVED',now_(),t.TeacherID]]);count++;
   });
-  audit_(t.TeacherID,'APPROVE_ROSTER',courseId,{count});return {approved:count};
+  audit_(t.TeacherID,'APPROVE_ROSTER',courseId,{count});invalidateAnalytics_();invalidateScanIndexes_();return {approved:count};
  });
 }
 function startSession(token,courseId,topic,periods){
@@ -188,12 +190,12 @@ function startSession(token,courseId,topic,periods){
   const l=Math.max(p+1,Math.min(240,Number(setting_('LATE_MINUTES',25))||25));
   const time=new Date(),id=rand_();
   const n=Number(periods||1);if(!Number.isInteger(n)||n<1||n>9)throw Error('จำนวนคาบต้องอยู่ระหว่าง 1 ถึง 9');
-  const row=[id,courseId,Utilities.formatDate(time,TZ_,'yyyy-MM-dd'),time.toISOString(),new Date(time.getTime()+p*60000).toISOString(),new Date(time.getTime()+l*60000).toISOString(),'OPEN',t.TeacherID,'',String(topic||'').slice(0,200),n];
+  const row=[id,courseId,Utilities.formatDate(time,TZ_,'yyyy-MM-dd'),time.toISOString(),new Date(time.getTime()+p*60000).toISOString(),new Date(time.getTime()+l*60000).toISOString(),'OPEN',t.TeacherID,'',String(topic||'').slice(0,200),n,''];
   tab_('Sessions').appendRow(row);
-  audit_(t.TeacherID,'START_SESSION',id,{courseId});return sessionView_(Object.fromEntries(HEADERS_.Sessions.map((h,i)=>[h,row[i]])));
+  audit_(t.TeacherID,'START_SESSION',id,{courseId});invalidateAnalytics_();return sessionView_(Object.fromEntries(HEADERS_.Sessions.map((h,i)=>[h,row[i]])));
  });
 }
-function sessionView_(s){return {sessionId:s.SessionID,courseId:s.CourseID,date:s.SessionDate,startAt:s.StartAt,presentUntil:s.PresentUntil,lateUntil:s.LateUntil,status:s.Status,topic:s.Topic,periods:Math.max(1,Number(s.Periods)||1)}}
+function sessionView_(s){return {sessionId:s.SessionID,courseId:s.CourseID,date:s.SessionDate,startAt:s.StartAt,presentUntil:s.PresentUntil,lateUntil:s.LateUntil,status:s.Status,topic:s.Topic,periods:Math.max(1,Number(s.Periods)||1),scheduleId:s.ScheduleID||''}}
 function getOpenSession(token,courseId){checkCourse_(token,courseId);const x=rows_('Sessions').find(r=>r.CourseID===courseId&&r.Status==='OPEN');return x?sessionView_(x):null}
 function scannerCode_(raw){
  const value=String(raw||'').trim();
@@ -238,7 +240,7 @@ function closeSession(token,sessionId){
   for(const en of approved){if(existing.has(en.StudentID))continue;newRows.push([rand_(),sessionId+'|'+en.StudentID,sessionId,course.CourseID,en.StudentID,'ABSENT',at,'AUTO_CLOSE',t.TeacherID,at,'ไม่พบการสแกน'])}
   if(newRows.length){const sh=tab_('Attendance');sh.getRange(sh.getLastRow()+1,1,newRows.length,11).setValues(newRows)}
   const sh=tab_('Sessions');sh.getRange(session._row,7).setValue('CLOSED');sh.getRange(session._row,9).setValue(at);
-  audit_(t.TeacherID,'CLOSE_SESSION',sessionId,{absentAdded:newRows.length});
+  audit_(t.TeacherID,'CLOSE_SESSION',sessionId,{absentAdded:newRows.length});invalidateAnalytics_();
   return {alreadyClosed:false,...getSessionStats_(sessionId)};
  });
 }
@@ -290,7 +292,7 @@ function updateAttendance(token,sessionId,studentId,newStatus,note){
   }else{
    sh.appendRow([rand_(),unique,sessionId,course.CourseID,studentId,newStatus,'','MANUAL',t.TeacherID,changedAt,reason]);
   }
-  audit_(t.TeacherID,'CORRECT_ATTENDANCE',unique,{before:previous,after:newStatus,note:reason,sessionState:session.Status,changedAt});
+  audit_(t.TeacherID,'CORRECT_ATTENDANCE',unique,{before:previous,after:newStatus,note:reason,sessionState:session.Status,changedAt});invalidateAnalytics_();
   return {ok:true,unchanged:false,before:previous,after:newStatus};
  });
 }
@@ -357,7 +359,7 @@ function setupFromSource_(){
    return [r[0],r[1],r[2],r[3],teacherId,r[4],r[5],reviewRow?reviewRow[9]:'REVIEW',r[6],setting_('TERM','2/2569')];
   }),[0]);
   imported.Enrollments=appendMissing_('Enrollments',enrolls.map(r=>[r[0],r[1],r[2],r[3],'']),[0,1]);
-  setSetting_('IMPORT_STATUS','READY');
+  setSetting_('IMPORT_STATUS','READY');invalidateAnalytics_();invalidateScanIndexes_();
   audit_('SYSTEM','READ_ONLY_IMPORT','KDTC_SOURCE',imported);
   return imported;
  });
