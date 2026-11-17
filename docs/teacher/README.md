@@ -12,16 +12,16 @@
 - **GitHub Pages สแกนเท่านั้น:** \`docs/teacher/scan.html\` (หน้ากล้อง QR / เครื่องอ่าน USB / ป้อนรหัส) ปลายทาง \`docs/teacher/index.html\` นำมาหน้าสแกนนี้
 - **ฐานข้อมูลใหม่:** https://docs.google.com/spreadsheets/d/19fSg7LPl-7u14Owomg1hifsJ6kQgafXcoAEYxGVOwaI/edit
 - **แหล่งข้อมูลวิชา/รายชื่อ อ่านอย่างเดียว:** https://docs.google.com/spreadsheets/d/18VmMX7nrE9jKEBbL9qsasS5s-sYeJRhfclRb0llIOvw/edit
-- **ต้นทางบัญชี/บทบาท อ่านอย่างเดียว:** Google Sheets ระบบกิจกรรม 2569-2 (Users) ผู้บริหาร/ผู้ดูแล/ครู (กำหนด ID ใน Script Properties)
+- **ต้นทางระบบสแกน อ่านอย่างเดียว (เปลี่ยนล่าสุด):** https://docs.google.com/spreadsheets/d/1b0WamSgNr9oDvu84qst0jOTGByk0t9DWNxmTGyqB1wY/edit — แท็บ `TEACHERS` สำหรับบัญชี/บทบาท และ `STUDENTS` สำหรับรหัสนักเรียน/QR `code4` และ `qrToken`
 - **Apps Script โครงการใหม่:** https://script.google.com/u/0/home/projects/1uXJoXc2Fp--ozK5nKQcGaqeVYW5TxXIXmfOLk_WkeKHO68MPoeRxwU18/edit
 
 GitHub ไม่จัดการบัญชี ไม่มี dashboard ไม่มีฐานข้อมูล ไม่บันทึกนักเรียน ไม่รับ PIN และไม่รับ access token โดยหน้า Apps Script รับรหัส QR ผ่าน \`postMessage\` แล้วเรียก \`google.script.run.scanStudent(...)\` ด้วยเซสชันครูที่ผ่านการยืนยัน
 
 ## สิทธิ์ผู้ใช้เดิม
 
-- Teacher ใน \`Users\` ของกิจกรรม 2569-2 → ครูผู้สอน เห็นและแก้ข้อมูลเฉพาะวิชาที่ได้รับมอบหมาย
-- Admin ใน \`Users\` ของกิจกรรม 2569-2 → ผู้ดูแล เห็นสรุปทั้งวิทยาลัยและส่งเรื่องให้ผู้บริหาร
-- Activity ใน \`Users\` ของกิจกรรม 2569-2 → ผู้บริหาร เห็นภาพรวมเดียวกับผู้ดูแลและรายการส่งต่อทั้งหมด แต่แก้ไขเช็กชื่อ/ส่งเรื่องไม่ได้
+- `TEACHERS.roles` มี `ADVISOR` หรือ `TEACHER` → ครูผู้สอน เห็นและแก้ข้อมูลเฉพาะวิชาที่ได้รับมอบหมาย
+- `TEACHERS.roles` มี `ADMIN` และ UserID อยู่ใน allowlist → ผู้ดูแล (ตรวจสอบแล้วมี U004, U035, U036) เห็นสรุปทั้งวิทยาลัยและส่งเรื่องให้ผู้บริหาร
+- ผู้บริหาร U001/U002 ที่ได้รับอนุญาตใน allowlist และตรวจตำแหน่งผู้อำนวยการจาก `TEACHERS.department` → เห็นรายงานทั้งวิทยาลัย แต่แก้ผลเช็กชื่อ/ส่งเรื่องไม่ได้
 - ไม่สร้าง PIN ใหม่ ไม่คัดลอก Salt/Hash หรือรหัสผ่านจากชีทเดิมลงชีทใหม่หรือ GitHub
 - ต้องเชื่อม **Home Room verifier ที่ตรวจรหัสจริงบนเซิร์ฟเวอร์เดิม** ก่อนจึงจะล็อกอินได้ (fail-closed) ไม่ยอมรับชื่อ/บทบาท/สถานะจาก browser
 - ตัวอย่างที่ตรวจจากต้นทาง: U004 Teacher, U035/U036 Admin, U001/U002 Activity
@@ -60,15 +60,15 @@ Dashboard: แยกรายครู รายห้อง รายแผน�
 
 ## ขั้นตอนติดตั้งและสิ่งที่ต้องตรวจสอบก่อนใช้จริง
 
-1. **สำคัญมาก:** พบว่าทั้งชีทกิจกรรมเดิมและชีทใหม่ถูกแชร์แบบ **anyone with link = Writer** ต้องตั้ง **ทั้งสองชีท** เป็น **Restricted** ก่อนใช้งานจริง ควรตรวจผลกระทบกับผู้ใช้เดิมก่อนปรับสิทธิ์ เนื่องจากข้อมูลผู้ใช้เดิมอาจถูกแก้ไขเพื่อยกระดับสิทธิ์ได้ โค้ดไม่แก้ชีทเดิมเอง และจะหยุดให้บริการหากชีทใดยังมีการเข้าถึงสาธารณะ
+1. **สำคัญมาก:** ตรวจชีทสแกนใหม่พบ **anyone with link = Reader** (ซึ่งยังไม่เหมาะเพราะมี `pinSalt` และ `pinHash`) และชีทปลายทางเช็กชื่อใหม่เป็น **anyone with link = Writer** ต้องตั้ง **ทั้งสองชีทเป็น Restricted** ก่อนใช้งานจริง โดยตรวจผลกระทบกับระบบเดิมก่อน โค้ดไม่ได้เปลี่ยนสิทธิ์ต้นทางเอง และจะหยุดให้บริการหากยังแชร์สาธารณะ
 2. ใน Apps Script โครงการใหม่ ให้ตรวจไฟล์เดิมและสำรองก่อน (ไม่เขียนทับฟังก์ชันที่ยังใช้งาน) เพิ่ม \`TeacherAttendance.gs\`, \`TeacherDashboard.gs\`, \`TeacherApp.html\` โดยไฟล์ HTML ใน Apps Script ต้องชื่อ **TeacherApp**. หากมี \`doGet\` เดิมให้ตรวจและรวมอย่างระมัดระวัง ไม่ใช้ \`TeacherBridge.html\` แล้ว
 3. Project Settings → Script Properties กำหนดค่า (แยกเก็บบนเซิร์ฟเวอร์):
    - \`TEACHER_SHEET_ID\`: ID ชีทใหม่
    - \`SOURCE_SHEET_ID\`: ID ชีท CARE NEXUS ที่มี ImportTeachers, TeacherRegistration, Students, Courses, Enrollments, ImportCourseReview
-   - \`ACTIVITY_USERS_SHEET_ID\`: ID ชีทกิจกรรม 2569-2 ที่มี Users.UserID, Role, Active
-   - `ADMIN_USER_IDS`: UserID ผู้ดูแลที่ยืนยันแล้ว (ค่าเริ่มต้น U035,U036) ต้องตรงกับ Role Admin ใน Users เดิม
-   - `EXECUTIVE_USER_IDS`: UserID ผู้บริหารที่ยืนยันแล้ว (ค่าเริ่มต้น U001,U002) ต้องตรงกับ Role Activity ใน Users เดิม
-   - \`BOOTSTRAP_ADMIN_ID\`: T004 (ใช้ระบุเจ้าของภายในชีทใหม่ **ไม่ใช่สิทธิ์หลัก**; สิทธิ์ Admin ตรวจจาก Users เดิมเท่านั้น)
+   - `SCAN_SOURCE_SHEET_ID`: `1b0WamSgNr9oDvu84qst0jOTGByk0t9DWNxmTGyqB1wY` — แท็บ `TEACHERS` (teacherId, name, roles, department, active), `STUDENTS` (studentId, code4, qrToken)
+   - `ADMIN_USER_IDS`: ค่าเริ่มต้น `U004,U035,U036` ต้องมี `ADMIN` ใน `TEACHERS.roles` ด้วย
+   - `EXECUTIVE_USER_IDS`: ค่าเริ่มต้น `U001,U002` ต้องตรวจบทบาทผู้อำนวยการ/รองผู้อำนวยการจาก `TEACHERS.department` ด้วย
+   - `BOOTSTRAP_ADMIN_ID`: `T004` (ใช้ระบุเจ้าของภายในชีทใหม่ **ไม่ใช่สิทธิ์หลัก**; สิทธิ์ Admin ตรวจจาก `TEACHERS` ต้นทางร่วมกับ allowlist)
    - \`HOMEROOM_VERIFY_URL\`: URL /exec ของ Home Room backend ที่ได้ตรวจสอบแล้วว่าเปิดการตรวจรหัสแบบ server-to-server
    - \`HOMEROOM_SHARED_SECRET\`: สุ่มค่าแข็งแรง 24 ตัวอักษรขึ้นไป เก็บเฉพาะ server ทั้งสองฝั่ง
 4. **จำเป็นต้องตรวจโค้ด Home Room เดิมก่อน:** ปลายทางจะได้รับ JSON POST action=\`KDTC_VERIFY_HOMEROOM_V1\`, userId, credential, sharedSecret; ต้องเรียกฟังก์ชันตรวจรหัสจริงเดิม, ตรวจ sharedSecret, และคืน \`{ok:true,userId:"U004",active:true}\` เฉพาะเมื่อผ่านการพิสูจน์จริง **ยังไม่สามารถยืนยันว่า Home Room ปัจจุบันรองรับ API นี้** หากยังไม่มีต้องเพิ่ม adapter ฝั่ง Home Room อย่างปลอดภัยหลัง backup และตรวจโค้ด doPost เดิม
@@ -91,4 +91,4 @@ Dashboard: แยกรายครู รายห้อง รายแผน�
 - ยังไม่ได้เข้าถึง/แก้ไข/Deploy โครงการ Apps Script จริงจากช่องทางนี้ จึงยังไม่ใช่ระบบ Production ที่ผ่านทดสอบแล้ว
 - ข้อมูลส่วนบุคคลยังไม่ได้นำเข้าชีทใหม่ เพราะแชร์เป็น anyone writer
 - การใช้รหัส Home Room เดียวกันต้องมีบริการตรวจรหัสของระบบเดิมที่ยืนยันได้จริง
-- การสแกน QR แบบ 4 หลักของกิจกรรมเดิม อาจต้องจับคู่กับ StudentID แบบเต็มใน Students.ScanCode **ห้ามเดาและห้ามสมมุติว่าเลข 4 หลักไม่ซ้ำ**
+- ตรวจ `STUDENTS` ในชีทสแกนใหม่พบ 388 นักเรียน และ `code4` ไม่ซ้ำกันในข้อมูลที่ตรวจ ณ 17 พ.ย. 2569; installer จะตรวจซ้ำก่อนจับคู่ `ScanCode` ในชีทใหม่ และ QR แบบ `K|code4|qrToken` จะถูกตรวจ token กับต้นทางแบบอ่านอย่างเดียว
