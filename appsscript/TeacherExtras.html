@@ -49,6 +49,9 @@
  <label>ตั้งแต่<input type="date" id="extraFrom"></label><label>ถึง<input type="date" id="extraTo"></label>
  <label>แผนก<select id="extraDepartment"><option value="">ทุกแผนก</option></select></label>
  <button id="extraShowExecutive" class="gold">ดูรายงาน</button>
+ <button id="extraWeek" class="alt">7 วัน</button>
+ <button id="extraMonth" class="alt">เดือนนี้</button>
+ <button id="extraTerm" class="alt">ทั้งภาคเรียน</button>
  <button id="extraPrintExecutive" class="alt">พิมพ์ PDF</button>
  <button id="extraExportCSV" class="alt">ส่งออก Excel (CSV)</button></div>
  <div id="extraPeriod" class="extra-banner">รายงานเวลาเรียนวิทยาลัยเทคนิคกาญจนดิษฐ์</div>
@@ -269,6 +272,20 @@ async function loadExecutive(){
  }catch(e){notice(e.message,true)}
 }
 $('extraShowExecutive').onclick=loadExecutive;
+function bangkokDate(d){
+ return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Bangkok',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);
+}
+$('extraWeek').onclick=()=>{
+ $('extraTo').value=bangkokDate(new Date());
+ $('extraFrom').value=bangkokDate(new Date(Date.now()-6*86400000));loadExecutive();
+};
+$('extraMonth').onclick=()=>{
+ $('extraTo').value=bangkokDate(new Date());
+ $('extraFrom').value=$('extraTo').value.slice(0,7)+'-01';loadExecutive();
+};
+$('extraTerm').onclick=()=>{
+ $('extraFrom').value='';$('extraTo').value='';loadExecutive();
+};
 $('extraPrintExecutive').onclick=()=>window.print();
 function csvCell(v){
  let x=String(v===null||v===undefined?'':v);
