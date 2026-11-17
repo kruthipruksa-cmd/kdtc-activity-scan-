@@ -62,13 +62,24 @@ async function startCamera(){
  if(reader||starting)return;
  starting=true;
  if(!window.Html5Qrcode)return msg('โหลดตัวอ่าน QR ไม่สำเร็จ ใช้เครื่องอ่านหรือกรอกรหัสแทนได้',false);
+ const camera=new Html5Qrcode('reader');reader=camera;
  try{
-  reader=new Html5Qrcode('reader');
-  await reader.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220}},value=>submit(value),()=>{});
+  await camera.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220}},value=>submit(value),()=>{});
   starting=false;
-  if(!ready){await stopCamera();return}
+  // A close request can arrive while browser camera permission is pending.
+  if(!ready||reader!==camera){
+   try{await camera.stop()}catch(_){}
+   try{await camera.clear()}catch(_){}
+   if(reader===camera)reader=null;
+   return;
+  }
   msg('พร้อมสแกน QR นักเรียน');
- }catch(e){reader=null;starting=false;msg('โปรดแตะ เปิดกล้องสแกน หากกล้องยังไม่ทำงาน: '+(e.message||String(e)),false)}
+ }catch(e){
+  if(reader===camera)reader=null;
+  starting=false;
+  try{await camera.clear()}catch(_){}
+  msg('โปรดแตะ เปิดกล้องสแกน หากกล้องยังไม่ทำงาน: '+(e.message||String(e)),false);
+ }
 }
 async function stopCamera(){
  if(!reader)return;const x=reader;reader=null;try{await x.stop()}catch(e){}try{await x.clear()}catch(e){}
