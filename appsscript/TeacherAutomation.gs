@@ -123,20 +123,21 @@ function tickTeachingSchedule_(){
  requireRestrictedSheets_();
  return lock_(()=>{
   const now=new Date(),time=localDayInfo_(now);
-  const schedules=rows_('TeachingSchedule').filter(s=>truth_(s.Active)&&Number(s.DayOfWeek)===time.dow);
+  const schedules=rows_('TeachingSchedule').filter(s=>truth_(s.Active)&&Number(s.DayOfWeek)===time.dow&&
+    (truth_(s.AutoOpen)||truth_(s.AutoClose)));
   if(!schedules.length)return {opened:0,closed:0};
   const sessions=rows_('Sessions'),courses=new Map(rows_('Courses').map(c=>[c.CourseID,c]));
   const approved=new Set(rows_('Enrollments').filter(e=>e.Status==='APPROVED').map(e=>e.CourseID));
   const activeSessions=new Map(sessions.filter(s=>s.Status==='OPEN').map(s=>[s.CourseID,s]));
   const enrolled=rows_('Enrollments').filter(e=>e.Status==='APPROVED');
-  const attendance=rows_('Attendance');
+  const attendance=schedules.some(s=>truth_(s.AutoClose))?rows_('Attendance'):[];
   const missingRecords=[];
   let opened=0,closed=0;
   for(const sch of schedules){
    const course=courses.get(sch.CourseID);
    if(!course||!truth_(course.Active))continue;
    const start=minuteOf_(sch.StartTime),end=minuteOf_(sch.EndTime);
-   if(truth_(sch.AutoOpen)&&time.minute>=start&&time.minute<start+5&&approved.has(sch.CourseID)){
+   if(truth_(sch.AutoOpen)&&time.minute>=start&&time.minute<start+10&&approved.has(sch.CourseID)){
     const already=sessions.some(s=>s.ScheduleID===sch.ScheduleID&&s.SessionDate===time.day);
     if(!already&&!activeSessions.has(sch.CourseID)){
      const p=Math.max(0,Math.min(120,Number(setting_('PRESENT_MINUTES',10))||10));
