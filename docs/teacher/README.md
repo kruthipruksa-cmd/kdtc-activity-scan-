@@ -60,12 +60,14 @@ Dashboard: แยกรายครู รายห้อง รายแผน�
 
 ## ขั้นตอนติดตั้งและสิ่งที่ต้องตรวจสอบก่อนใช้จริง
 
-1. **สำคัญมาก:** ชีทปลายทางล่าสุดพบสิทธิ์ **anyone with link = Writer** ต้องเปลี่ยนเป็น **Restricted** ก่อน import ข้อมูลหรือ Deploy ใด ๆ. \`setupFromSource_()\` พยายามจำกัดสิทธิ์และจะไม่ยอม import หากยังไม่ใช่ Private
+1. **สำคัญมาก:** พบว่าทั้งชีทกิจกรรมเดิมและชีทใหม่ถูกแชร์แบบ **anyone with link = Writer** ต้องตั้ง **ทั้งสองชีท** เป็น **Restricted** ก่อนใช้งานจริง ควรตรวจผลกระทบกับผู้ใช้เดิมก่อนปรับสิทธิ์ เนื่องจากข้อมูลผู้ใช้เดิมอาจถูกแก้ไขเพื่อยกระดับสิทธิ์ได้ โค้ดไม่แก้ชีทเดิมเอง และจะหยุดให้บริการหากชีทใดยังมีการเข้าถึงสาธารณะ
 2. ใน Apps Script โครงการใหม่ ให้ตรวจไฟล์เดิมและสำรองก่อน (ไม่เขียนทับฟังก์ชันที่ยังใช้งาน) เพิ่ม \`TeacherAttendance.gs\`, \`TeacherDashboard.gs\`, \`TeacherApp.html\` โดยไฟล์ HTML ใน Apps Script ต้องชื่อ **TeacherApp**. หากมี \`doGet\` เดิมให้ตรวจและรวมอย่างระมัดระวัง ไม่ใช้ \`TeacherBridge.html\` แล้ว
 3. Project Settings → Script Properties กำหนดค่า (แยกเก็บบนเซิร์ฟเวอร์):
    - \`TEACHER_SHEET_ID\`: ID ชีทใหม่
    - \`SOURCE_SHEET_ID\`: ID ชีท CARE NEXUS ที่มี ImportTeachers, TeacherRegistration, Students, Courses, Enrollments, ImportCourseReview
    - \`ACTIVITY_USERS_SHEET_ID\`: ID ชีทกิจกรรม 2569-2 ที่มี Users.UserID, Role, Active
+   - `ADMIN_USER_IDS`: UserID ผู้ดูแลที่ยืนยันแล้ว (ค่าเริ่มต้น U035,U036) ต้องตรงกับ Role Admin ใน Users เดิม
+   - `EXECUTIVE_USER_IDS`: UserID ผู้บริหารที่ยืนยันแล้ว (ค่าเริ่มต้น U001,U002) ต้องตรงกับ Role Activity ใน Users เดิม
    - \`BOOTSTRAP_ADMIN_ID\`: T004 (ใช้ระบุเจ้าของภายในชีทใหม่ **ไม่ใช่สิทธิ์หลัก**; สิทธิ์ Admin ตรวจจาก Users เดิมเท่านั้น)
    - \`HOMEROOM_VERIFY_URL\`: URL /exec ของ Home Room backend ที่ได้ตรวจสอบแล้วว่าเปิดการตรวจรหัสแบบ server-to-server
    - \`HOMEROOM_SHARED_SECRET\`: สุ่มค่าแข็งแรง 24 ตัวอักษรขึ้นไป เก็บเฉพาะ server ทั้งสองฝั่ง
