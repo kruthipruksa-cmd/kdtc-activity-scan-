@@ -108,7 +108,8 @@ function executiveData_(token,start,end,department){
  const src=from||to?assembleAnalytics_(from,to):cachedAnalytics_();
  const target=String(department||'').trim();
  const detail=target?src.detail.filter(x=>x.department===target):src.detail;
- const courses=target?src.courseReports.filter(x=>x.department===target):src.courseReports;
+ const ids=new Set(detail.map(x=>x.courseId));
+ const courses=target?src.courseReports.filter(x=>ids.has(x.courseId)):src.courseReports;
  return {from,to,department:target,detail,courses};
 }
 function getExecutiveOnePage(token,start,end,department){
