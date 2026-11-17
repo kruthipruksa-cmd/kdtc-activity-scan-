@@ -1,0 +1,204 @@
+<!-- TeacherSelfService.html — teacher subject/course and student management on Apps Script only -->
+<style>
+.self-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.self-form label{margin:0}
+.self-flex{display:flex;align-items:end;gap:10px;flex-wrap:wrap}
+.self-flex>*{flex:1;min-width:140px}
+.self-action{padding:12px 0}
+.self-alert{font-size:12px;background:#eef4fb;border-left:4px solid #cba04a;padding:9px 11px;border-radius:9px}
+.self-mark{display:inline-flex;border-radius:90px;padding:4px 9px;background:#eaf0f8;font-size:11px}
+.self-check{width:18px;height:18px;min-height:18px;accent-color:#225587}
+@media(max-width:620px){.self-form{grid-template-columns:1fr}}
+</style>
+<template id="teacherSelfTemplate">
+<div class="panel" id="selfCoursePanel">
+ <h2><icon aria-hidden="true"></icon>สร้างรายวิชาของฉัน</h2>
+ <p class="muted">เพิ่มเฉพาะวิชา/กลุ่มเรียนของครู ระบบจะตรวจรหัสวิชาและห้องซ้ำโดยอัตโนมัติ</p>
+ <form id="selfCourseForm">
+ <div class="self-form">
+  <label>รหัสวิชา<input id="selfCourseCode" placeholder="20106-2003" maxlength="25" required></label>
+  <label>ชื่อรายวิชา<input id="selfCourseName" placeholder="เช่น เขียนแบบก่อสร้าง" maxlength="160" required></label>
+  <label>ห้องเรียน<input id="selfCourseClass" placeholder="เช่น ปวช.2 ชส.1" maxlength="85" required></label>
+ </div>
+ <div class="row self-action"><button type="submit" class="gold">เพิ่มรายวิชา</button></div>
+ </form>
+</div>
+<div class="panel" id="selfStudentPanel">
+ <h2>เพิ่มนักเรียนเข้ารายวิชา</h2>
+ <p class="muted">ค้นหาจากทะเบียนนักเรียนที่มีอยู่แล้ว เลือกเพิ่มทีละคนหรือหลายคนพร้อมกัน โดยไม่สร้างข้อมูลซ้ำ</p>
+ <label>เลือกรายวิชา<select id="selfStudentCourse"></select></label>
+ <form id="selfStudentSearchForm" class="self-flex" style="margin:9px 0 12px">
+  <label>ค้นหารหัส ชื่อ หรือห้อง<input id="selfStudentQuery" placeholder="อย่างน้อย 2 ตัวอักษร" autocomplete="off"></label>
+  <button type="submit" class="alt">ค้นหานักเรียน</button>
+ </form>
+ <div class="row" style="margin-bottom:10px">
+  <button type="button" id="selfSelectAll" class="alt slim">เลือกคนที่ยังไม่อยู่ในรายวิชา</button>
+  <button type="button" id="selfAddSelected" class="gold slim">เพิ่มนักเรียนที่เลือก</button>
+ </div>
+ <div id="selfStudentSearchResults" class="tableScroll"></div>
+ <div class="self-alert" style="margin:12px 0">ถ้าไม่พบรายชื่อในทะเบียนกลาง ให้กด “แจ้งเพิ่มนักเรียนใหม่” ระบบจะส่งคำขอถึงผู้ดูแลเพื่อตรวจสอบก่อนลงทะเบียนจริง</div>
+ <button type="button" id="selfOpenStudentRequest" class="alt">แจ้งเพิ่มนักเรียนใหม่</button>
+ <form id="selfNewStudentForm" hidden style="margin-top:12px">
+  <h3>คำขอเพิ่มนักเรียนที่ยังไม่มีในทะเบียน</h3>
+  <div class="self-form">
+   <label>รหัสนักเรียนเต็ม<input id="selfNewStudentId" maxlength="24" required></label>
+   <label>ชื่อ–สกุล<input id="selfNewStudentName" maxlength="160" required></label>
+   <label>ห้องเรียน<input id="selfNewStudentClass" maxlength="85" required></label>
+   <label>แผนก<input id="selfNewStudentDept" maxlength="100" required></label>
+   <label>ระดับชั้น<input id="selfNewStudentLevel" maxlength="50" placeholder="เช่น ปวช.2" required></label>
+  </div>
+  <p class="muted">ยังไม่สร้างบัญชีใหม่ ไม่แก้ระบบสแกนเดิม ผู้ดูแลต้องตรวจสอบรหัสในทะเบียนกลางก่อนอนุมัติ</p>
+  <button type="submit" class="gold">ส่งคำขอให้ผู้ดูแล</button>
+ </form>
+</div>
+<div class="panel" id="selfAdminRequests" hidden>
+ <div class="between"><h2>คำขอเพิ่มนักเรียน (ผู้ดูแล)</h2><button type="button" id="selfReloadRequests" class="alt">อัปเดต</button></div>
+ <p class="muted">อนุมัติได้เมื่อรหัสและชื่อมีจริงและเปิดใช้งานในทะเบียนสแกนกิจกรรมแล้ว</p>
+ <div id="selfRequestTable" class="tableScroll"></div>
+</div>
+</template>
+<script>
+(function(){
+'use strict';
+const template=document.getElementById('teacherSelfTemplate');
+const coursesPage=document.getElementById('page-courses');
+const first=coursesPage.querySelector('.panel');
+first.insertAdjacentElement('afterend',template.content.cloneNode(true));
+let currentStudentCandidates=[],isOpenRequests=false;
+const originalLoggedIn=loggedIn;
+loggedIn=async function(){
+ await originalLoggedIn();
+ const editAllowed=APP.user?.role!=='EXECUTIVE';
+ $('selfCoursePanel').hidden=!editAllowed;
+ $('selfStudentPanel').hidden=!editAllowed;
+ $('selfAdminRequests').hidden=APP.user?.role!=='ADMIN';
+ fillSelfCourses();
+};
+const originalReloadDashboard=reloadDashboard;
+reloadDashboard=async function(){
+ await originalReloadDashboard();
+ fillSelfCourses();
+};
+const originalShowPage=showPage;
+showPage=function(page){
+ originalShowPage(page);
+ if(page==='courses'&&APP.user?.role==='ADMIN')loadSelfRequests();
+};
+function fillSelfCourses(){
+ const select=$('selfStudentCourse'),value=select.value;select.replaceChildren();
+ const courses=APP.dashboard?.courses||[];
+ for(const course of courses){
+  const opt=elem('option',course.courseCode+' • '+course.courseName+' | '+course.room);
+  opt.value=course.courseId;select.append(opt);
+ }
+ if(courses.some(x=>x.courseId===value))select.value=value;
+ if(!select.value&&courses[0])select.value=courses[0].courseId;
+}
+$('selfCourseForm').onsubmit=async event=>{
+ event.preventDefault();
+ const input={code:$('selfCourseCode').value.trim(),name:$('selfCourseName').value.trim(),classId:$('selfCourseClass').value.trim()};
+ const button=$('selfCourseForm').querySelector('button[type="submit"]');button.disabled=true;
+ try{
+  const response=await rpc('createMyCourse',APP.token,input);
+  notice(response.duplicate?'มีรายวิชานี้แล้ว':'เพิ่มรายวิชาเรียบร้อย');
+  await reloadDashboard();
+  const id=response.course.courseId;
+  $('selfStudentCourse').value=id;$('rosterCourse').value=id;
+  if(!response.duplicate)$('selfCourseForm').reset();
+  $('selfStudentPanel').scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(e){notice(e.message,true)}finally{button.disabled=false}
+};
+async function selfSearchStudents(){
+ const courseId=$('selfStudentCourse').value,query=$('selfStudentQuery').value.trim();
+ if(!courseId)return notice('กรุณาเลือกรายวิชา',true);
+ if(query.length<2)return notice('พิมพ์รหัสหรือชื่ออย่างน้อย 2 ตัวอักษร',true);
+ try{
+  currentStudentCandidates=await rpc('searchCourseStudents',APP.token,courseId,query);
+  const results=$('selfStudentSearchResults');results.replaceChildren();
+  const t=elem('table'),head=elem('thead'),body=elem('tbody');
+  row(head,'th',['เลือก','รหัสนักเรียน','ชื่อ-สกุล','ห้อง','สถานะ']);
+  for(const x of currentStudentCandidates){
+   const tr=elem('tr'),checkCell=elem('td'),check=elem('input');
+   check.type='checkbox';check.className='self-check';check.dataset.studentId=x.studentId;
+   check.disabled=x.enrollment==='APPROVED';checkCell.append(check);tr.append(checkCell);
+   for(const value of [x.studentId,x.name,x.classId,
+    x.enrollment==='APPROVED'?'อยู่ในรายวิชาแล้ว':'เพิ่มได้'])
+    tr.append(elem('td',value));
+   body.append(tr);
+  }
+  t.append(head,body);results.append(t);
+  notice('พบ '+currentStudentCandidates.length+' คน (แสดงสูงสุด 35 คน) • เลือกรายชื่อแล้วกด เพิ่มนักเรียนที่เลือก');
+ }catch(e){notice(e.message,true)}
+}
+$('selfStudentSearchForm').onsubmit=event=>{event.preventDefault();selfSearchStudents()};
+$('selfStudentCourse').onchange=()=>{currentStudentCandidates=[];$('selfStudentSearchResults').replaceChildren()};
+$('selfSelectAll').onclick=()=>{
+ $('selfStudentSearchResults').querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach(x=>{x.checked=true});
+};
+$('selfAddSelected').onclick=async()=>{
+ const chosen=[...$('selfStudentSearchResults').querySelectorAll('input[type="checkbox"]:checked')]
+  .map(x=>x.dataset.studentId);
+ if(!chosen.length)return notice('เลือกนักเรียนอย่างน้อยหนึ่งคน',true);
+ const courseId=$('selfStudentCourse').value;
+ const course=APP.dashboard?.courses?.find(x=>x.courseId===courseId);
+ const crossClass=currentStudentCandidates.filter(x=>chosen.includes(x.studentId)&&x.classId!==course?.room);
+ if(crossClass.length&&!confirm('มีนักเรียน '+crossClass.length+' คนอยู่ต่างห้องกับรายวิชา ต้องการเพิ่มจริงหรือไม่?'))return;
+ const button=$('selfAddSelected');button.disabled=true;
+ try{
+  const result=await rpc('addStudentsToCourse',APP.token,courseId,chosen);
+  notice('เพิ่มนักเรียนใหม่ '+result.created+' คน ยืนยันรายการเดิม '+result.updated+' คน');
+  await Promise.all([reloadDashboard(),selfSearchStudents()]);
+  if($('rosterCourse').value===courseId)await showRoster();
+ }catch(e){notice(e.message,true)}finally{button.disabled=false}
+};
+$('selfOpenStudentRequest').onclick=()=>{
+ const form=$('selfNewStudentForm');form.hidden=!form.hidden;
+ const course=APP.dashboard?.courses?.find(x=>x.courseId===$('selfStudentCourse').value);
+ if(course&&!form.hidden)$('selfNewStudentClass').value=course.room;
+};
+$('selfNewStudentForm').onsubmit=async event=>{
+ event.preventDefault();
+ try{
+  const result=await rpc('requestNewStudent',APP.token,$('selfStudentCourse').value,{
+   studentId:$('selfNewStudentId').value.trim(),name:$('selfNewStudentName').value.trim(),
+   classId:$('selfNewStudentClass').value.trim(),department:$('selfNewStudentDept').value.trim(),
+   level:$('selfNewStudentLevel').value.trim()
+  });
+  notice(result.duplicate?'คำขอนี้อยู่ระหว่างตรวจสอบแล้ว':'ส่งคำขอให้ผู้ดูแลตรวจสอบทะเบียนกลางแล้ว');
+  $('selfNewStudentForm').reset();$('selfNewStudentForm').hidden=true;
+ }catch(e){notice(e.message,true)}
+};
+async function loadSelfRequests(){
+ if(APP.user?.role!=='ADMIN')return;
+ try{
+  const records=await rpc('listStudentAddRequests',APP.token);
+  const parent=$('selfRequestTable');
+  table(parent,['รหัสนักเรียน','ชื่อ-สกุล','ห้อง','รายวิชา','สถานะ','วันที่'],
+   records.map(x=>[x.studentId,x.name,x.classId,x.courseId,x.status,x.createdAt]));
+  const trs=[...parent.querySelectorAll('tbody tr')];
+  records.forEach((x,i)=>{
+   const action=elem('td');
+   if(x.status==='PENDING'){
+    const yes=elem('button','ตรวจอนุมัติ','gold slim');
+    yes.onclick=async()=>{
+     if(!confirm('ยืนยันว่ารหัสและชื่อของ '+x.name+' ตรงกับทะเบียนกลาง? ระบบจะตรวจอีกครั้งก่อนบันทึก'))return;
+     try{await rpc('reviewNewStudentRequest',APP.token,x.id,true,'ตรวจทะเบียนกลางแล้ว');
+      notice('อนุมัติและเพิ่มนักเรียนเข้ารายวิชาแล้ว');await loadSelfRequests();await reloadDashboard()}
+     catch(e){notice(e.message,true)}
+    };
+    const no=elem('button','ไม่อนุมัติ','red slim');no.style.marginLeft='5px';
+    no.onclick=async()=>{
+     const reason=prompt('เหตุผลไม่อนุมัติ (อย่างน้อย 5 ตัวอักษร)');if(reason===null)return;
+     try{await rpc('reviewNewStudentRequest',APP.token,x.id,false,reason.trim());
+      notice('บันทึกผลไม่อนุมัติแล้ว');await loadSelfRequests()}catch(e){notice(e.message,true)}
+    };
+    action.append(yes,no);
+   }
+   trs[i].append(action);
+  });
+  parent.querySelector('thead tr').append(elem('th','ตรวจสอบ'));
+ }catch(e){notice(e.message,true)}
+}
+$('selfReloadRequests').onclick=loadSelfRequests;
+})();
+</script>
