@@ -49,6 +49,8 @@
 6. `TeacherApp.html` — หน้าระบบหลักกรม–ทอง Apps Script
 7. `TeacherExtras.html` — เมนูเสริมแบบ Lazy Loading (จำเป็นต้องติดตั้งชื่อไฟล์ตรงกันเพื่อให้ include_ ทำงาน)
 
+**เพิ่มต่อจากรายการข้างต้น:** `TeacherSelfService.gs` และ `TeacherSelfService.html` เพื่อให้ครูเพิ่มรายวิชาและเพิ่มนักเรียนได้เอง (รายละเอียดด้านบน)
+
 **GitHub Pages:** `docs/teacher/scan.html` เป็นเครื่องสแกนเท่านั้น ไม่เก็บข้อมูลหรือการยืนยันตัวตน
 
 ### ฐานข้อมูลใหม่
@@ -95,7 +97,7 @@
 
 ## โครงสร้างที่กำหนด
 
-- **Apps Script ระบบหลัก:** ทั้ง 5 ไฟล์ .gs และ 2 ไฟล์ HTML จากรายการต้นเอกสาร ต้องเพิ่มเข้าโครงการเดียวกัน ไม่ใช้ GitHub เป็น Backend
+- **Apps Script ระบบหลัก:** ทั้ง 6 ไฟล์ .gs และ 3 ไฟล์ HTML จากรายการต้นเอกสาร ต้องเพิ่มเข้าโครงการเดียวกัน ไม่ใช้ GitHub เป็น Backend
 - **GitHub Pages สแกนเท่านั้น:** \`docs/teacher/scan.html\` (หน้ากล้อง QR / เครื่องอ่าน USB / ป้อนรหัส) ปลายทาง \`docs/teacher/index.html\` นำมาหน้าสแกนนี้
 - **ฐานข้อมูลใหม่:** https://docs.google.com/spreadsheets/d/19fSg7LPl-7u14Owomg1hifsJ6kQgafXcoAEYxGVOwaI/edit
 - **แหล่งข้อมูลวิชา/รายชื่อ อ่านอย่างเดียว:** https://docs.google.com/spreadsheets/d/18VmMX7nrE9jKEBbL9qsasS5s-sYeJRhfclRb0llIOvw/edit
