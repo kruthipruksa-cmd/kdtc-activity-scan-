@@ -160,6 +160,70 @@ async function showReport(){
   }
  }catch(e){message(e.message,true)}
 }
+
+/** List historical sessions and editable records. */
+async function refreshSessions(reset){
+ const c=selectedCourse();if(!c)return;
+ try{
+  const sessions=await rpc('getCourseSessions',state.token,c.courseId);
+  const select=$('reviewSession'),previous=reset?'':select.value;select.replaceChildren();
+  const opt=document.createElement('option');opt.value='';opt.textContent='เลือกคาบเรียน';select.append(opt);
+  for(const entry of sessions){
+   const o=document.createElement('option');o.value=entry.sessionId;
+   o.textContent=(entry.date||String(entry.startAt).slice(0,10))+' • '+(entry.status==='OPEN'?'กำลังเช็กชื่อ':'ปิดคาบแล้ว')+(entry.topic?' • '+entry.topic:'');
+   select.append(o);
+  }
+  if(sessions.some(x=>x.sessionId===previous))select.value=previous;
+  else if(state.session&&sessions.some(x=>x.sessionId===state.session.sessionId))select.value=state.session.sessionId;
+  else if(sessions.length)select.value=sessions[0].sessionId;
+  state.reviewed=null;$('attendanceRows').replaceChildren();
+  $('attendanceInfo').textContent=sessions.length?'เลือกคาบแล้วกด ดูผล':'ยังไม่มีประวัติคาบเรียน';
+ }catch(e){message(e.message,true)}
+}
+async function loadSessionAttendance(){
+ const id=$('reviewSession').value;if(!id){$('attendanceRows').replaceChildren();return}
+ try{
+  const data=await rpc('getSessionAttendance',state.token,id);
+  if($('reviewSession').value!==id)return;
+  state.reviewed=data;
+  const count={PRESENT:0,LATE:0,ABSENT:0,LEAVE:0};
+  data.students.forEach(r=>{if(Object.prototype.hasOwnProperty.call(count,r.status))count[r.status]++});
+  $('attendanceInfo').textContent=(data.session.status==='OPEN'?'กำลังเปิดคาบ':'ปิดคาบแล้ว')+
+    ' • มา '+count.PRESENT+' • สาย '+count.LATE+' • ขาด '+count.ABSENT+' • ลา '+count.LEAVE+
+    ' • ยังไม่มีผล '+data.students.filter(r=>!r.status).length;
+  const body=$('attendanceRows');body.replaceChildren();
+  for(const item of data.students){
+   const tr=document.createElement('tr');
+   for(const value of [item.studentId,item.name,label[item.status]||'ยังไม่มีผล']){
+    const td=document.createElement('td');td.textContent=value;tr.append(td);
+   }
+   const selectCell=document.createElement('td'),select=document.createElement('select');
+   select.setAttribute('aria-label','เปลี่ยนสถานะของ '+item.name);
+   for(const [value,name] of [['PRESENT','มา'],['LATE','สาย'],['ABSENT','ขาด'],['LEAVE','ลา']]){
+    const option=document.createElement('option');option.value=value;option.textContent=name;select.append(option);
+   }
+   select.value=item.status||'PRESENT';selectCell.append(select);tr.append(selectCell);
+   const actionCell=document.createElement('td'),button=document.createElement('button');
+   button.className='secondary';button.textContent='แก้ไข';
+   button.addEventListener('click',async()=>{
+    const desired=select.value;
+    if(desired===item.status)return message('สถานะนี้ตรงกับข้อมูลเดิมอยู่แล้ว');
+    const reason=prompt('ระบุเหตุผลเปลี่ยนผลของ '+item.name+' จาก '+(label[item.status]||'ยังไม่มีผล')+' เป็น '+label[desired]+' (อย่างน้อย 5 ตัวอักษร)');
+    if(reason===null)return;
+    if(reason.trim().length<5)return message('กรุณาระบุเหตุผลอย่างน้อย 5 ตัวอักษร',true);
+    button.disabled=true;
+    try{
+     const result=await rpc('updateAttendance',state.token,id,item.studentId,desired,reason.trim());
+     message('แก้ผล '+item.name+' จาก '+(label[result.before]||'ยังไม่มีผล')+' เป็น '+label[result.after]+' พร้อมบันทึกประวัติ');
+     await loadSessionAttendance();
+     if(!$('reportPanel').hidden)await showReport();
+    }catch(e){message(e.message,true);button.disabled=false}
+   });
+   actionCell.append(button);tr.append(actionCell);body.append(tr);
+  }
+ }catch(e){message(e.message,true)}
+}
+
 async function logout(){await stopCamera();try{if(state.token)await rpc('logout',state.token)}catch(_){}state.token='';state.teacher=null;sessionStorage.removeItem(TOKEN_KEY);$('app').hidden=true;$('login').hidden=false;message('ออกจากระบบแล้ว')}
 $('connect').addEventListener('click',connect);
 $('loginForm').addEventListener('submit',login);
