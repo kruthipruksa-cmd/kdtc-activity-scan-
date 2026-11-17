@@ -63,7 +63,7 @@
 const template=document.getElementById('teacherSelfTemplate');
 const coursesPage=document.getElementById('page-courses');
 const first=coursesPage.querySelector('.panel');
-first.insertAdjacentElement('afterend',template.content.cloneNode(true));
+first.after(template.content.cloneNode(true));
 let currentStudentCandidates=[],isOpenRequests=false;
 const originalLoggedIn=loggedIn;
 loggedIn=async function(){
