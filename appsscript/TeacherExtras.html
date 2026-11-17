@@ -80,6 +80,22 @@ const M=document.querySelector('.surface');
 M.insertBefore(T.content.cloneNode(true),M.querySelector('footer'));
 const days=['','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
 const nav=document.getElementById('nav');
+const forgotten=elem('div');forgotten.id='extraForgotten';
+$('page-home').querySelector('.sectionTitle').insertAdjacentElement('afterend',forgotten);
+async function renderOpenWarnings(){
+ try{
+  const list=await rpc('getOpenSessionWarnings',APP.token);
+  forgotten.replaceChildren();
+  if(!list.length)return;
+  const banner=elem('div',undefined,'extra-warning');
+  banner.append(elem('strong','แจ้งเตือน: มีคาบเรียนเปิดค้าง '+list.length+' คาบ'));
+  for(const item of list.slice(0,5)){
+   banner.append(elem('div',item.courseCode+' • '+item.room+' • เปิดมาแล้ว '+item.elapsedMinutes+' นาที','extra-slim'));
+  }
+  const btn=elem('button','ตรวจสอบคาบ','alt slim');
+  btn.onclick=()=>showPage('timetable');banner.append(btn);forgotten.append(banner);
+ }catch(e){}
+}
 for(const [page,title] of [
  ['timetable','▤ ตารางสอน'],['warnings','⚠ เตือนก่อนเสี่ยง'],
  ['student360','◎ นักเรียน 360'],['executive','▥ รายงานผู้บริหาร']
@@ -93,6 +109,7 @@ showPage=function(page){
  if(page==='timetable')refreshSchedule();
  if(page==='warnings')loadWarnings();
  if(page==='executive')loadExecutive();
+ if(page==='home'||page==='courses')renderOpenWarnings();
 };
 const loggedOriginal=loggedIn;
 loggedIn=async function(){
