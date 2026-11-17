@@ -360,9 +360,13 @@ async function handleScan(code){
  finally{APP.busy=false}
 }
 function setScannerEnabled(){
- const payload={kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session&&APP.scannerOpen};
- const i=$('scannerFrame');if(i.contentWindow)i.contentWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
- if(APP.scannerWindow&&!APP.scannerWindow.closed)APP.scannerWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
+ const i=$('scannerFrame');
+ if(APP.scannerLoaded&&i.contentWindow)i.contentWindow.postMessage(
+  {kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session&&APP.scannerOpen},
+  'https://kruthipruksa-cmd.github.io');
+ if(APP.scannerWindow&&!APP.scannerWindow.closed)APP.scannerWindow.postMessage(
+  {kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session},
+  'https://kruthipruksa-cmd.github.io');
 }
 function sendScannerAck(data){
  const i=$('scannerFrame'),payload={kind:'KDTC_SCAN_RESULT',nonce:APP.scanNonce,result:data};
@@ -371,7 +375,8 @@ function sendScannerAck(data){
 }
 function initScanner(){
  APP.scanNonce=randomNonce();
- APP.scanUrl='https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/scan.html#nonce='+APP.scanNonce;
+ APP.scanUrl='https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/scan.html?embedded=1#nonce='+APP.scanNonce;
+ APP.scanPopupUrl='https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/scan.html#nonce='+APP.scanNonce;
 }
 window.addEventListener('message',event=>{
  if(event.origin!=='https://kruthipruksa-cmd.github.io')return;
@@ -379,17 +384,25 @@ window.addEventListener('message',event=>{
  if(!trusted)return;const data=event.data;
  if(!data||data.nonce!==APP.scanNonce)return;
  if(data.kind==='KDTC_SCANNER_READY'){
-  event.source.postMessage({kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session&&APP.scannerOpen},event.origin);
+  const isFrame=event.source===i.contentWindow;
+  event.source.postMessage({kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,
+    enabled:!!APP.session&&(isFrame?APP.scannerOpen:true)},event.origin);
   return;
  }
  if(data.kind==='KDTC_STUDENT_SCAN'&&typeof data.code==='string'&&data.code.length<=150){
-  if(!APP.session||!APP.scannerOpen){sendScannerAck({ok:false,error:'กรุณาเปิดหน้าสแกนและเปิดคาบก่อน'});return}
+  const permitted=APP.scannerOpen&&event.source===i.contentWindow||
+    APP.scannerWindow&&event.source===APP.scannerWindow&&!APP.scannerWindow.closed;
+  if(!APP.session||!permitted){sendScannerAck({ok:false,error:'กรุณาเปิดหน้าสแกนและเปิดคาบก่อน'});return}
   handleScan(data.code);
  }
 });
 async function logout(){
  try{await rpc('logout',APP.token)}catch(e){}
  if(APP.scannerOpen)exitScannerOverlay();
+ if(APP.scannerWindow&&!APP.scannerWindow.closed){
+  APP.scannerWindow.postMessage({kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:false},'https://kruthipruksa-cmd.github.io');
+  APP.scannerWindow.close();
+ }
  APP.token='';APP.user=null;APP.session=null;sessionStorage.removeItem('KDTC_TEACHER_TOKEN');
  $('authScreen').hidden=false;$('application').hidden=true;$('password').value='';
 }
@@ -416,8 +429,11 @@ $('exitScanner').onclick=exitScannerOverlay;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&APP.scannerOpen)exitScannerOverlay()});
 $('openScanWindow').onclick=()=>{
  if(!APP.session)return notice('กรุณาเปิดคาบก่อน',true);
- APP.scannerWindow=window.open(APP.scanUrl,'KDTC_TEACHER_SCANNER','width=480,height=800');
- if(!APP.scannerWindow)notice('เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาตป๊อปอัป',true);
+ const win=window.open(APP.scanPopupUrl,'KDTC_TEACHER_SCANNER','width=480,height=800');
+ if(!win)return notice('เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาตป๊อปอัป',true);
+ APP.scannerWindow=win;
+ exitScannerOverlay(); // fallback uses the same Apps Script session; hidden iframe releases camera
+ notice('เปิดกล้องในหน้าต่างแยก ใช้คาบเรียนและบัญชีเดิม');
 };
 initScanner();authStart();
 </script></body></html>
