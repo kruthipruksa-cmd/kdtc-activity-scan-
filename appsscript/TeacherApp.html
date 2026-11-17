@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="th"><head><base target="_top"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KDTC ครูผู้สอน</title>
+<style>
+:root{--navy:#11284d;--navy2:#1b4675;--gold:#d6ad53;--bg:#f1f4f8;--text:#1c304a;--line:#dce3ee;--muted:#708198;--green:#138557;--red:#c93e48;--amber:#b4791c;--blue:#2571b8}
+*{box-sizing:border-box}body{font-family:system-ui,"Noto Sans Thai",sans-serif;margin:0;color:var(--text);background:var(--bg)}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:11px;padding:10px 14px;min-height:41px;font-weight:700;background:var(--navy2);color:#fff}button:disabled{opacity:.45;cursor:default}button.alt{background:#e9eef6;color:#203e62}button.gold{background:var(--gold);color:#1e2940}button.red{background:#f9e6e8;color:#a5313e}button.slim{padding:5px 9px;min-height:31px;font-size:12px}button.ghost{background:transparent;color:var(--navy)}input,select,textarea{width:100%;border:1px solid #ccd7e5;border-radius:10px;padding:10px;background:#fff;color:var(--text);min-height:42px}textarea{min-height:80px;resize:vertical}label{font-size:13px;font-weight:700;display:block;margin:8px 0 5px}.muted{color:var(--muted);font-size:12px}.small{font-size:12px}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.between{display:flex;align-items:center;justify-content:space-between;gap:10px}.logo{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;background:linear-gradient(140deg,#e9c875,#bc8b39);color:#122646;font-size:20px;font-weight:900}
+.header{background:linear-gradient(120deg,#102747,#1c4571);color:#fff;border-bottom:3px solid var(--gold);padding:12px max(16px,calc((100vw - 1320px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}.header h1{margin:0;font-size:22px;color:#f9d783}.header p{margin:0;font-size:11px;color:#d0ddee}
+.shell{max-width:1320px;margin:15px auto;display:grid;grid-template-columns:225px 1fr;gap:16px;padding:0 12px}.sidebar{background:#fff;border:1px solid var(--line);border-radius:17px;padding:12px;align-self:start;position:sticky;top:12px}.sidebar button{display:block;width:100%;text-align:left;margin-bottom:6px;background:transparent;color:#3f5671;font-weight:650}.sidebar button.active{background:#e8eef8;color:#113d72;border-left:4px solid var(--gold)}.surface{min-width:0}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px #192a4810}.panel h2{font-size:19px;margin:0 0 12px}.panel h3{font-size:16px;margin:0 0 10px}.card-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:12px 0}.stat{background:#fff;border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:14px;padding:17px;min-height:94px}.stat strong{display:block;font-size:27px;color:var(--navy)}.stat span{display:block;color:var(--muted);font-size:12px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.sectionTitle{font-weight:800;font-size:21px;margin:3px 0 14px}.bar{height:9px;background:#e5eaf1;overflow:hidden;border-radius:9px;margin:8px 0}.bar>div{height:100%;background:var(--navy2);border-radius:9px}.tableScroll{overflow:auto;max-height:590px;border:1px solid var(--line);border-radius:11px}table{width:100%;border-collapse:collapse;min-width:590px;font-size:12px}td,th{text-align:left;border-bottom:1px solid #e8eef5;padding:9px 10px;vertical-align:middle}th{background:#f0f5fb;position:sticky;top:0;color:#47627c;z-index:1}tr:hover td{background:#fbfcff}.pill{display:inline-block;border-radius:100px;padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap}.pill.problem{background:#fde6e8;color:#ae283b}.pill.risk{background:#fff0d6;color:#98610e}.pill.normal{background:#e5f6ec;color:#0f764a}.pill.none{background:#eef2f7;color:#61728c}.pill.leave{background:#e5effb;color:#2e6eaf}.status{font-size:13px;color:var(--navy2);min-height:20px;margin:11px 0}.status.error{color:#bb2e40}.field4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.field3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.scanFrame{width:100%;height:390px;border:0;background:#eef3f9;border-radius:13px;display:block}.scanResult{font-size:19px;font-weight:800;border-radius:13px;padding:15px;margin:12px 0;background:#ebf3ff;min-height:55px}.scanResult.good{background:#e8f8ef;color:#117d52}.scanResult.bad{background:#fff0f1;color:#a63640}.scanResult.warn{background:#fff3da;color:#976313}.navtop{display:none}.loginWrap{max-width:440px;margin:7vh auto;padding:0 12px}.loginHero{text-align:center;background:linear-gradient(150deg,#112b51,#224875);color:#fff;border-radius:18px 18px 0 0;padding:28px 20px}.loginHero .logo{margin:auto auto 10px}.loginHero h1{margin:0;color:#f7d780}.loginWrap .panel{border-radius:0 0 18px 18px}.printOnly{display:none}
+@media(max-width:960px){.shell{grid-template-columns:1fr}.sidebar{position:static;display:flex;overflow:auto;gap:5px;white-space:nowrap}.sidebar button{width:auto;margin:0;min-width:110px}.card-grid{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.field4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.header h1{font-size:18px}.header .logo{width:40px;height:40px}.header p{font-size:10px}.panel{padding:13px}.card-grid{gap:8px}.stat{padding:12px}.stat strong{font-size:23px}.field4,.field3{grid-template-columns:1fr}.scanFrame{height:330px}.sectionTitle{font-size:19px}}
+@media print{body{background:#fff}.sidebar,.noPrint,.header button,.formActions{display:none!important}.shell{display:block}.panel{break-inside:avoid;box-shadow:none}.printOnly{display:block}.header{background:#fff;color:#111;border-color:#caa556}.header h1{color:#162a49}}
+</style>
+</head><body>
+<div id="authScreen" class="loginWrap"><div class="loginHero"><div class="logo">KD</div><h1>ครูผู้สอน</h1><p>KDTC • ระบบเช็กชื่อและเฝ้าระวังเวลาเรียน</p></div>
+ <div class="panel"><h2>เข้าสู่ระบบ</h2><p class="muted">ใช้รหัสและ PIN เดียวกับ Home Room / ระบบสแกนกิจกรรม</p>
+ <form id="loginForm"><label for="uid">รหัสผู้ใช้</label><input id="uid" placeholder="U004" autocomplete="username" required>
+ <label for="password">PIN / รหัสผ่าน Home Room</label><input id="password" type="password" autocomplete="current-password" required>
+ <button class="gold" style="width:100%;margin-top:16px">เข้าสู่ระบบ</button></form><p id="loginStatus" class="status"></p></div></div>
+<div id="application" hidden>
+<header class="header"><div class="row"><div class="logo">KD</div><div><h1>KDTC ครูผู้สอน</h1><p>วิทยาลัยเทคนิคกาญจนดิษฐ์ • Attendance & Student Care</p></div></div>
+ <div class="row noPrint"><span class="small" id="activeUser"></span><button class="alt slim" id="refreshAll">อัปเดต</button><button class="gold slim" id="logout">ออกจากระบบ</button></div></header>
+<div class="shell"><nav class="sidebar noPrint" id="nav">
+ <button data-page="home" class="active">▦ ภาพรวม</button>
+ <button data-page="courses">▤ รายวิชา</button>
+ <button data-page="scan">▣ สแกนเข้าเรียน</button>
+ <button data-page="report">▥ รายงานรายวิชา</button>
+ <button data-page="monitor">◉ เฝ้าระวังนักเรียน</button>
+ <button data-page="referrals">↗ นักเรียนส่งต่อ</button>
+</nav>
+<main class="surface">
+<p id="notice" class="status" role="status"></p>
+<section id="page-home" class="page"><h2 class="sectionTitle">ภาพรวมเวลาเรียน</h2><div id="overviewStats" class="card-grid"></div>
+<div class="grid2"><div class="panel"><h2>กลุ่มเสี่ยงและมีปัญหา</h2><div id="riskBreakdown"></div></div><div class="panel"><h2>รายวิชาที่ต้องติดตาม</h2><div id="problemCourses" class="tableScroll"></div></div></div>
+<div class="panel" id="adminBreakdowns"><h2>สรุปผลตามหน่วยงาน</h2><div class="row noPrint"><button class="alt slim" data-summary="rooms">รายห้องเรียน</button><button class="alt slim" data-summary="teachers">รายครู</button><button class="alt slim" data-summary="departments">รายแผนก</button><button class="alt slim" id="printHome">พิมพ์ / PDF</button></div>
+<div id="groupSummary" class="tableScroll"></div></div></section>
+<section id="page-courses" class="page" hidden><h2 class="sectionTitle">รายวิชาที่รับผิดชอบ</h2><div class="panel"><div id="courseCards"></div></div>
+<div class="panel"><h2>ยืนยันรายชื่อนักเรียน</h2><p class="muted">ต้องตรวจสอบรายชื่อที่เสนอมาก่อนเปิดคาบเรียน</p><div class="row"><select id="rosterCourse"></select><button id="showRoster" class="alt">ดูรายชื่อ</button></div><div id="rosterData" class="tableScroll"></div><div class="row formActions" style="margin-top:10px"><button id="approveRoster" class="gold" disabled>ยืนยันรายชื่อที่ตรวจสอบแล้ว</button></div></div></section>
+<section id="page-scan" class="page" hidden><h2 class="sectionTitle">เช็กชื่อเข้าเรียน</h2><div class="panel"><div class="field3">
+ <div><label>รายวิชา</label><select id="scanCourse"></select></div><div><label>หัวข้อการสอน</label><input id="topic" placeholder="เช่น ปฏิบัติใบงานที่ 3"></div><div><label>จำนวนคาบเรียน</label><select id="periods"><option value="1">1 คาบ</option><option value="2">2 คาบ</option><option value="3">3 คาบ</option><option value="4">4 คาบ</option><option value="5">5 คาบ</option><option value="6">6 คาบ</option><option value="7">7 คาบ</option><option value="8">8 คาบ</option><option value="9">9 คาบ</option></select></div></div>
+ <div class="row formActions" style="margin-top:12px"><button id="startSession">▶ เปิดคาบ</button><button id="closeSession" class="red" disabled>■ ปิดคาบ / ตัดขาด</button></div>
+ <p id="activeSession" class="muted">ยังไม่ได้เปิดคาบเรียน</p></div>
+<div class="panel"><h2>กล้องสแกน QR (GitHub)</h2><p class="muted">หน้า GitHub ใช้กล้องอ่านรหัสเท่านั้น • Apps Script เป็นผู้ตรวจสิทธิ์และบันทึกผล</p>
+<iframe id="scannerFrame" class="scanFrame" title="กล้องสแกน QR นักเรียน" allow="camera" referrerpolicy="no-referrer"></iframe>
+<div class="row formActions" style="margin-top:10px"><button id="openScanWindow" class="alt">เปิดกล้องในหน้าต่างใหม่</button></div>
+<form id="manualForm" class="row formActions" style="margin-top:11px"><input id="manualCode" style="flex:2;min-width:180px" placeholder="รหัสนักเรียน / QR" autocomplete="off"><button>บันทึก</button></form>
+<div id="scanResult" class="scanResult">พร้อมรับรหัสจากเครื่องสแกน</div></div></section>
+<section id="page-report" class="page" hidden><h2 class="sectionTitle">รายงานเวลาเรียนรายวิชา</h2><div class="panel"><div class="row noPrint"><select id="reportCourse" style="flex:1;min-width:220px"></select><button id="showReport">ดูรายงาน</button><button id="printReport" class="alt">พิมพ์ / PDF</button></div>
+<div class="card-grid" id="reportStats"></div><div class="tableScroll" id="courseReportTable"></div>
+<p class="muted">ร้อยละเข้าเรียน = (คาบมา + คาบสาย) ÷ คาบที่สอนจริง × 100 • ลาแสดงแยกและไม่นับเป็นมา</p></div>
+<div class="panel"><h2>แก้ไขผลสแกน มา / สาย / ขาด / ลา</h2><p class="muted">แก้ไขได้ทั้งคาบที่กำลังเปิดและคาบที่ปิดแล้ว พร้อมระบุเหตุผลและเก็บประวัติ</p>
+<div class="row"><select id="editSession" style="flex:1"></select><button id="showSession" class="alt">ดูผลคาบนี้</button></div><div id="editAttendance" class="tableScroll"></div></div></section>
+<section id="page-monitor" class="page" hidden><h2 class="sectionTitle">นักเรียนที่ต้องเฝ้าระวัง</h2><div class="panel"><div class="row noPrint"><button data-risk="ALL" class="alt">ทั้งหมด</button><button data-risk="PROBLEM" class="red">มีปัญหา ≥20%</button><button data-risk="RISK" class="alt">เสี่ยง 10–19%</button></div>
+<p class="muted">จำแนกจากร้อยละขาดเรียนจริง ไม่รวมสถานะลา • คำนวณจากคาบที่ปิดแล้ว</p><div id="riskStudents" class="tableScroll"></div></div></section>
+<section id="page-referrals" class="page" hidden><h2 class="sectionTitle">นักเรียนส่งต่อ</h2><div class="panel"><div class="between"><h2>รายการที่ครูส่งต่อเพื่อช่วยเหลือ</h2><button id="refreshReferrals" class="alt noPrint">รีเฟรช</button></div><p class="muted" id="referralHint">ผู้ดูแลตรวจสอบ และส่งรายงานให้ผู้บริหารผ่านเมนูนี้</p>
+<div id="referralTable" class="tableScroll"></div></div></section>
+<footer class="muted" style="text-align:center;padding:8px 0 20px">KDTC • ระบบหลัก Google Apps Script • กล้องสแกน GitHub Pages • เวลาประเทศไทย</footer>
+</main></div></div></div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const APP={token:sessionStorage.getItem('KDTC_TEACHER_TOKEN')||'',user:null,dashboard:null,course:null,session:null,report:null,scanNonce:'',scannerWindow:null,busy:false,activePage:'home',riskFilter:'ALL'};
+const STATES={PRESENT:'มา',LATE:'สาย',ABSENT:'ขาด',LEAVE:'ลา',NEW:'รอรับเรื่อง',IN_REVIEW:'กำลังดำเนินการ',FORWARDED:'ส่งต่อผู้บริหาร',RESOLVED:'ปิดเรื่อง'};
+function rpc(name,...args){return new Promise((resolve,reject)=>{
+ if(!window.google?.script?.run)return reject(Error('หน้านี้ต้องเปิดจาก Google Apps Script Web App'));
+ google.script.run.withSuccessHandler(resolve).withFailureHandler(e=>reject(Error(e.message||String(e))))[name](...args);
+})}
+function notice(m,error){$('notice').textContent=m||'';$('notice').className='status'+(error?' error':'')}
+function elem(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n}
+function row(parent,tag,data){const tr=elem('tr');data.forEach(x=>tr.append(elem(tag,x)));parent.append(tr);return tr}
+function table(target,headers,data,renderExtra){
+ const parent=typeof target==='string'?$(target):target;parent.replaceChildren();
+ const tab=elem('table'),thead=elem('thead'),tbody=elem('tbody');row(thead,'th',headers);
+ for(const d of data){const tr=elem('tr');for(const x of d){tr.append(elem('td',x))}if(renderExtra)renderExtra(tr,d);tbody.append(tr)}
+ tab.append(thead,tbody);parent.append(tab);return tbody;
+}
+function pct(x){return x===null||x===undefined?'—':Number(x).toFixed(2)+'%'}
+function pill(x){return elem('span',x==='PROBLEM'?'มีปัญหา':x==='RISK'?'เสี่ยง':x==='NORMAL'?'ปกติ':'ยังไม่มีข้อมูล','pill '+(x==='PROBLEM'?'problem':x==='RISK'?'risk':x==='NORMAL'?'normal':'none'))}
+function lineStat(title,value){const el=elem('div',undefined,'stat');el.append(elem('strong',value),elem('span',title));return el}
+function refreshStats(target,items){$(target).replaceChildren(...items.map(x=>lineStat(x[0],x[1])))}
+function showPage(name){
+ APP.activePage=name;document.querySelectorAll('.page').forEach(el=>el.hidden=el.id!=='page-'+name);
+ document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===name));
+ if(name==='home')renderHome();
+ if(name==='courses')renderCourses();
+ if(name==='report')renderReportPage();
+ if(name==='monitor')renderMonitor();
+ if(name==='referrals')loadReferrals();
+ if(name==='scan')showScanPage();
+ window.scrollTo({top:0,behavior:'auto'});
+}
+async function authStart(){
+ if(!APP.token)return;
+ try{APP.user=await rpc('me',APP.token);await loggedIn()}catch(e){APP.token='';sessionStorage.removeItem('KDTC_TEACHER_TOKEN');$('authScreen').hidden=false;$('application').hidden=true}
+}
+async function login(ev){
+ ev.preventDefault();const id=$('uid').value.trim(),password=$('password').value;
+ $('loginStatus').textContent='กำลังตรวจสอบสิทธิ์จาก Home Room...';
+ try{const r=await rpc('login',id,password);
+ APP.token=r.token;sessionStorage.setItem('KDTC_TEACHER_TOKEN',APP.token);APP.user={userId:r.userId,teacherId:r.teacherId,role:r.role,name:r.name};
+ $('password').value='';$('loginStatus').textContent='';await loggedIn();
+ }catch(e){$('loginStatus').textContent=e.message}
+}
+async function loggedIn(){
+ $('authScreen').hidden=true;$('application').hidden=false;
+ $('activeUser').textContent=APP.user.name+' • '+({TEACHER:'ครูผู้สอน',ADMIN:'ผู้ดูแลระบบ',EXECUTIVE:'ผู้บริหาร'}[APP.user.role]||APP.user.role);
+ document.querySelector('[data-page="scan"]').hidden=APP.user.role==='EXECUTIVE';
+ document.querySelector('[data-page="courses"]').hidden=APP.user.role==='EXECUTIVE';
+ await reloadDashboard();
+ showPage(APP.user.role==='TEACHER'?'courses':'home');
+}
+async function reloadDashboard(){
+ try{
+  APP.dashboard=await rpc('getDashboard',APP.token);
+  fillCourses();
+  if(APP.activePage==='home')renderHome();
+  if(APP.activePage==='courses')renderCourses();
+  if(APP.activePage==='monitor')renderMonitor();
+ }catch(e){notice(e.message,true)}
+}
+function fillCourses(){
+ const data=APP.dashboard?.courses||[];
+ for(const id of ['rosterCourse','scanCourse','reportCourse']){
+  const el=$(id),previous=el.value;el.replaceChildren();
+  for(const c of data){const opt=elem('option',c.courseCode+' • '+c.courseName+' | '+c.room);opt.value=c.courseId;el.append(opt)}
+  if(data.some(c=>c.courseId===previous))el.value=previous;
+ }
+ if(data.length&&!APP.course)APP.course=data[0].courseId;
+}
+function renderHome(){
+ const d=APP.dashboard;if(!d)return;const v=d.aggregate;
+ refreshStats('overviewStats',[['นักเรียนในรายวิชาที่นับผล',v.students+' คน'],['รายวิชา',v.subjects+' รายการ'],['ร้อยละเข้าเรียน',pct(v.attendancePercent)],['ขาดเกินเกณฑ์',v.problem+' คน']]);
+ $('riskBreakdown').replaceChildren();
+ [['ปกติ',v.normal,'normal'],['เสี่ยง 10–19%',v.risk,'risk'],['มีปัญหา ≥20%',v.problem,'problem']].forEach(x=>{
+  const r=elem('div',undefined,'between');r.style.margin='9px 0';r.append(pill(x[2]==='normal'?'NORMAL':x[2]==='risk'?'RISK':'PROBLEM'),elem('strong',x[1]+' คน'));$('riskBreakdown').append(r)
+ });
+ const issues=[...d.courses].sort((a,b)=>b.problem-a.problem||b.risk-a.risk).slice(0,10);
+ table('problemCourses',['วิชา/ห้อง','มีปัญหา','เสี่ยง','มาเรียน'],issues.map(x=>[x.courseCode+' '+x.room,x.problem,x.risk,pct(x.attendedPercent)]));
+ $('adminBreakdowns').hidden=d.actor.role==='TEACHER';
+ if(d.actor.role!=='TEACHER')renderGroups('rooms');
+}
+function renderGroups(group){
+ const d=APP.dashboard;if(!d)return;
+ const title=group==='rooms'?'ห้องเรียน':group==='teachers'?'ครูผู้สอน':'แผนก';
+ table('groupSummary',[title,'นักเรียน','รายวิชา','เข้าเรียน','ขาดเรียน','มีปัญหา','เสี่ยง'],
+  (d[group]||[]).map(x=>[x.label,x.students,x.subjects,pct(x.attendancePercent),pct(x.absencePercent),x.problem,x.risk]));
+}
+function renderCourses(){
+ if(!APP.dashboard)return;
+ const data=APP.dashboard.courses||[];
+ table('courseCards',['รหัสวิชา','ชื่อวิชา','ห้อง','สอนจริง (คาบ)','ผู้เรียน','กลุ่มมีปัญหา','เสี่ยง'],
+  data.map(x=>[x.courseCode,x.courseName,x.room,x.totalPeriods,x.students,x.problem,x.risk]));
+}
+async function showRoster(){
+ const id=$('rosterCourse').value;if(!id)return;
+ try{
+  const rows=await rpc('getRoster',APP.token,id);
+  const pending=rows.filter(x=>x.status==='SUGGESTED');
+  table('rosterData',['รหัส','นักเรียน','ห้อง','การลงทะเบียน'],rows.map(x=>[x.studentId,x.name,x.classId,x.status==='APPROVED'?'ยืนยันแล้ว':'รอตรวจสอบ']));
+  $('approveRoster').disabled=!pending.length;
+  $('approveRoster').dataset.course=id;
+  notice('พบรายชื่อรอตรวจสอบ '+pending.length+' คน โปรดตรวจรายชื่อให้ถูกต้องก่อนอนุมัติ');
+ }catch(e){notice(e.message,true)}
+}
+async function approveRoster(){
+ const id=$('approveRoster').dataset.course;if(!id||!confirm('ยืนยันว่ารายชื่อในรายวิชานี้ถูกต้องและต้องการอนุมัติรายชื่อที่รอตรวจสอบ?'))return;
+ try{const r=await rpc('approveRoster',APP.token,id);notice('ยืนยันแล้ว '+r.approved+' คน');await showRoster();await reloadDashboard()}
+ catch(e){notice(e.message,true)}
+}
+async function selectCoursePage(id){$('reportCourse').value=id;showPage('report');await loadReport()}
+async function loadReport(){
+ const id=$('reportCourse').value;if(!id)return;
+ try{
+  APP.report=await rpc('getCourseReport',APP.token,id);const c=APP.report.course;
+  refreshStats('reportStats',[['คาบที่สอนจริง',c.totalPeriods+' คาบ'],['ร้อยละเข้าเรียน',pct(c.attendedPercent)],['กลุ่มมีปัญหา',c.problem+' คน'],['กลุ่มเสี่ยง',c.risk+' คน']]);
+  const parent=$('courseReportTable');parent.replaceChildren();
+  const tab=elem('table'),th=elem('thead'),body=elem('tbody');
+  row(th,'th',['รหัส','นักเรียน','มา','สาย','ขาด','ลา','เข้าเรียน','ขาดเรียน','สถานะ','ส่งต่อ']);
+  APP.report.students.forEach(x=>{
+   const tr=row(body,'td',[x.studentId,x.studentName,x.present,x.late,x.absent,x.leave,pct(x.attendancePercent),pct(x.absencePercent)]);
+   const status=elem('td');status.append(pill(x.risk));tr.append(status);
+   const act=elem('td');
+   if(x.risk==='PROBLEM'&&APP.user.role!=='EXECUTIVE'){
+    const btn=elem('button','ส่งต่อ','red slim');btn.onclick=()=>sendReferral(x);act.append(btn);
+   }else act.textContent='—';tr.append(act);
+  });
+  tab.append(th,body);parent.append(tab);
+  await refreshSessionSelect();
+ }catch(e){notice(e.message,true)}
+}
+async function sendReferral(rowData){
+ const reason=prompt('ส่งต่อ '+rowData.studentName+' ให้ผู้ดูแล ระบุรายละเอียดปัญหาและการช่วยเหลือเบื้องต้น (อย่างน้อย 10 ตัวอักษร)');
+ if(reason===null)return;
+ try{const result=await rpc('createReferral',APP.token,rowData.courseId,rowData.studentId,reason.trim());
+ notice(result.duplicate?'มีรายการส่งต่อที่ยังดำเนินการอยู่แล้ว':'ส่งต่อนักเรียนให้ผู้ดูแลเรียบร้อย');}
+ catch(e){notice(e.message,true)}
+}
+function renderReportPage(){if($('reportCourse').options.length)loadReport()}
+async function refreshSessionSelect(){
+ const id=$('reportCourse').value;if(!id)return;
+ try{
+  const rows=await rpc('getCourseSessions',APP.token,id),sel=$('editSession'),old=sel.value;sel.replaceChildren();
+  for(const x of rows){const op=elem('option',x.date+' • '+x.periods+' คาบ • '+(x.status==='OPEN'?'กำลังเปิด':'ปิดแล้ว')+(x.topic?' • '+x.topic:''));op.value=x.sessionId;sel.append(op)}
+  if(rows.some(x=>x.sessionId===old))sel.value=old;
+  if(rows.length)await loadAttendanceForEdit();else $('editAttendance').replaceChildren();
+ }catch(e){notice(e.message,true)}
+}
+async function loadAttendanceForEdit(){
+ const id=$('editSession').value;if(!id)return;
+ try{
+  const data=await rpc('getSessionAttendance',APP.token,id),parent=$('editAttendance');parent.replaceChildren();
+  const tab=elem('table'),head=elem('thead'),body=elem('tbody');
+  row(head,'th',['รหัส','นักเรียน','ผลเดิม','แก้ไขเป็น','ดำเนินการ']);
+  for(const x of data.students){
+   const tr=row(body,'td',[x.studentId,x.name,STATES[x.status]||'ยังไม่บันทึก']);
+   const choice=elem('td'),sel=elem('select');
+   [['PRESENT','มา'],['LATE','สาย'],['ABSENT','ขาด'],['LEAVE','ลา']].forEach(([v,label])=>{const o=elem('option',label);o.value=v;sel.append(o)});
+   sel.value=x.status||'PRESENT';choice.append(sel);tr.append(choice);
+   const last=elem('td'),btn=elem('button','บันทึก','alt slim');
+   btn.disabled=APP.user.role==='EXECUTIVE';
+   btn.onclick=async()=>{
+    if(sel.value===x.status)return notice('สถานะไม่เปลี่ยนแปลง');
+    const reason=prompt('ระบุเหตุผลการแก้ไขผลเช็กชื่อ '+x.name+' อย่างน้อย 5 ตัวอักษร');if(reason===null)return;
+    try{const r=await rpc('updateAttendance',APP.token,id,x.studentId,sel.value,reason.trim());notice('ปรับ '+x.name+' จาก '+(STATES[r.before]||'ยังไม่บันทึก')+' เป็น '+STATES[r.after]+' พร้อมเก็บประวัติ');
+    await loadAttendanceForEdit();await loadReport()}catch(e){notice(e.message,true)}
+   };last.append(btn);tr.append(last);
+  }
+  tab.append(head,body);parent.append(tab);
+ }catch(e){notice(e.message,true)}
+}
+function renderMonitor(){
+ if(!APP.dashboard)return;
+ const list=APP.dashboard.riskStudents.filter(x=>APP.riskFilter==='ALL'||x.risk===APP.riskFilter);
+ const parent=$('riskStudents');parent.replaceChildren();const tab=elem('table'),head=elem('thead'),body=elem('tbody');
+ row(head,'th',['รหัส','นักเรียน','รายวิชา','ห้อง','ขาดเรียน','เวลาเรียน','สถานะ','ส่งต่อ']);
+ for(const x of list){
+  const tr=row(body,'td',[x.studentId,x.studentName,x.courseCode,x.room,pct(x.absencePercent),pct(x.attendancePercent)]);
+  const td=elem('td');td.append(pill(x.risk));tr.append(td);
+  const action=elem('td');if(x.risk==='PROBLEM'&&APP.user.role!=='EXECUTIVE'){const btn=elem('button','ส่งต่อ','red slim');btn.onclick=()=>sendReferral(x);action.append(btn)}tr.append(action);
+ }
+ tab.append(head,body);parent.append(tab);
+}
+async function loadReferrals(){
+ try{
+  const items=await rpc('listReferrals',APP.token),parent=$('referralTable');parent.replaceChildren();
+  const tab=elem('table'),head=elem('thead'),body=elem('tbody');
+  row(head,'th',['นักเรียน','วิชา/ห้อง','ขาดเรียน','เหตุผล','สถานะ','ดำเนินการ']);
+  for(const x of items){
+   const tr=row(body,'td',[x.studentName,x.courseCode+' • '+x.room,pct(x.absentPercent),x.reason,STATES[x.status]||x.status]);
+   const td=elem('td');
+   if(APP.user.role==='ADMIN'){
+    const options=x.status==='NEW'?[['REVIEW','รับเรื่อง'],['FORWARD','ส่งผู้บริหาร']]:x.status==='IN_REVIEW'?[['FORWARD','ส่งผู้บริหาร'],['RESOLVE','ปิดเรื่อง']]:x.status==='FORWARDED'?[['RESOLVE','ปิดเรื่อง']]:[];
+    for(const [action,title] of options){
+     const btn=elem('button',title,'slim '+(action==='FORWARD'?'gold':'alt'));btn.style.margin='2px';
+     btn.onclick=async()=>{
+      const note=prompt('รายละเอียดการดำเนินการ / ส่งต่อผู้บริหาร (อย่างน้อย 5 ตัวอักษร)');if(note===null)return;
+      try{await rpc('referralAction',APP.token,x.id,action,note.trim());notice('บันทึกการดำเนินการเรียบร้อย');loadReferrals()}catch(e){notice(e.message,true)}
+     };td.append(btn);
+    }
+   }
+   tr.append(td);
+  }
+  tab.append(head,body);parent.append(tab);
+  $('referralHint').textContent=APP.user.role==='EXECUTIVE'?'รายการที่ผู้ดูแลส่งต่อให้ผู้บริหาร':APP.user.role==='TEACHER'?'รายการที่ส่งต่อจากรายวิชาของท่าน':'ตรวจรับเรื่องและส่งรายงานต่อผู้บริหาร';
+ }catch(e){notice(e.message,true)}
+}
+function randomNonce(){const b=new Uint8Array(16);crypto.getRandomValues(b);return [...b].map(x=>x.toString(16).padStart(2,'0')).join('')}
+function showScanPage(){
+ $('scanCourse').value=APP.course||$('scanCourse').value;
+ const id=$('scanCourse').value;if(id)refreshActiveSession();
+}
+async function refreshActiveSession(){
+ const courseId=$('scanCourse').value;APP.course=courseId;
+ if(!courseId)return;
+ try{APP.session=await rpc('getOpenSession',APP.token,courseId);updateSessionUi()}catch(e){notice(e.message,true)}
+}
+function updateSessionUi(){
+ const x=APP.session;
+ $('activeSession').textContent=x?'คาบที่เปิด: '+x.date+' • '+x.periods+' คาบ • '+(x.topic||'ไม่ระบุหัวข้อ'):'ยังไม่ได้เปิดคาบเรียน';
+ $('closeSession').disabled=!x;$('startSession').disabled=!!x||APP.user.role==='EXECUTIVE';
+ $('scanResult').textContent=x?'พร้อมสแกนสำหรับคาบนี้':'เปิดคาบเรียนก่อนสแกน';
+}
+async function startSession(){
+ try{APP.course=$('scanCourse').value;
+ APP.session=await rpc('startSession',APP.token,APP.course,$('topic').value,Number($('periods').value));
+ updateSessionUi();notice('เปิดคาบเรียนแล้ว • GitHub พร้อมสแกน');}
+ catch(e){notice(e.message,true)}
+}
+async function closeSession(){
+ if(!APP.session||!confirm('ปิดคาบเรียนและบันทึก ขาด ให้นักเรียนที่ยังไม่มีผลใช่หรือไม่?'))return;
+ try{const r=await rpc('closeSession',APP.token,APP.session.sessionId);
+ APP.session=null;updateSessionUi();notice('ปิดคาบแล้ว มา '+r.present+' สาย '+r.late+' ขาด '+r.absent+' ลา '+r.leave);
+ await reloadDashboard();}
+ catch(e){notice(e.message,true)}
+}
+async function handleScan(code){
+ if(APP.busy||!APP.session)return;
+ APP.busy=true;$('scanResult').textContent='กำลังตรวจรหัสและบันทึก...';
+ try{
+  const result=await rpc('scanStudent',APP.token,APP.session.sessionId,code);
+  const message=result.name+' • '+(result.duplicate?'สแกนซ้ำ':STATES[result.status])+' • '+result.classId;
+  $('scanResult').textContent=message;
+  $('scanResult').className='scanResult '+(result.status==='PRESENT'?'good':result.status==='LATE'?'warn':'bad');
+  sendScannerAck({ok:true,name:result.name,duplicate:result.duplicate,status:result.status});
+ }catch(e){$('scanResult').textContent=e.message;$('scanResult').className='scanResult bad';sendScannerAck({ok:false,error:e.message})}
+ finally{APP.busy=false}
+}
+function sendScannerAck(data){
+ const i=$('scannerFrame'),payload={kind:'KDTC_SCAN_RESULT',nonce:APP.scanNonce,result:data};
+ if(i.contentWindow)i.contentWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
+ if(APP.scannerWindow&&!APP.scannerWindow.closed)APP.scannerWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
+}
+function initScanner(){
+ APP.scanNonce=randomNonce();
+ const url='https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/scan.html#nonce='+APP.scanNonce;
+ $('scannerFrame').src=url;APP.scanUrl=url;
+}
+window.addEventListener('message',event=>{
+ if(event.origin!=='https://kruthipruksa-cmd.github.io')return;
+ const i=$('scannerFrame'),trusted=event.source===i.contentWindow||(APP.scannerWindow&&event.source===APP.scannerWindow);
+ if(!trusted)return;const data=event.data;
+ if(!data||data.nonce!==APP.scanNonce)return;
+ if(data.kind==='KDTC_SCANNER_READY'){
+  event.source.postMessage({kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session},event.origin);
+  return;
+ }
+ if(data.kind==='KDTC_STUDENT_SCAN'&&typeof data.code==='string'&&data.code.length<=150){
+  if(!APP.session){sendScannerAck({ok:false,error:'กรุณาเปิดคาบก่อน'});return}
+  handleScan(data.code);
+ }
+});
+async function logout(){
+ try{await rpc('logout',APP.token)}catch(e){}
+ APP.token='';APP.user=null;APP.session=null;sessionStorage.removeItem('KDTC_TEACHER_TOKEN');
+ $('authScreen').hidden=false;$('application').hidden=true;$('password').value='';
+}
+$('loginForm').addEventListener('submit',login);
+$('logout').onclick=logout;
+$('refreshAll').onclick=reloadDashboard;
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+document.querySelectorAll('[data-summary]').forEach(b=>b.onclick=()=>renderGroups(b.dataset.summary));
+document.querySelectorAll('[data-risk]').forEach(b=>b.onclick=()=>{APP.riskFilter=b.dataset.risk;renderMonitor()});
+$('printHome').onclick=()=>window.print();
+$('printReport').onclick=()=>window.print();
+$('showRoster').onclick=showRoster;
+$('approveRoster').onclick=approveRoster;
+$('showReport').onclick=loadReport;
+$('showSession').onclick=loadAttendanceForEdit;
+$('refreshReferrals').onclick=loadReferrals;
+$('scanCourse').onchange=refreshActiveSession;
+$('startSession').onclick=startSession;
+$('closeSession').onclick=closeSession;
+$('manualForm').onsubmit=ev=>{ev.preventDefault();const input=$('manualCode'),val=input.value.trim();input.value='';if(val)handleScan(val)};
+$('openScanWindow').onclick=()=>{APP.scannerWindow=window.open(APP.scanUrl,'KDTC_TEACHER_SCANNER','width=480,height=800');if(!APP.scannerWindow)notice('เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาตป๊อปอัป',true)};
+initScanner();authStart();
+</script></body></html>
