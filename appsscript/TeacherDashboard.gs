@@ -7,11 +7,12 @@ function periodCount_(session){const n=Number(session.Periods||1);return Number.
 function percent_(num,den){return den>0?Math.round(num*10000/den)/100:null}
 function riskLevel_(absent,total){if(!total)return 'NO_DATA';const pct=absent*100/total;return pct>=20?'PROBLEM':pct>=10?'RISK':'NORMAL'}
 function riskLabel_(level){return {PROBLEM:'มีปัญหา',RISK:'เสี่ยง',NORMAL:'ปกติ',NO_DATA:'ยังไม่มีข้อมูล'}[level]||level}
-function assembleAnalytics_(){
+function assembleAnalytics_(fromDate,toDate){
  const courses=rows_('Courses').filter(x=>truth_(x.Active));
  const students=new Map(rows_('Students').filter(x=>x.EnrollStatus==='ACTIVE').map(x=>[x.StudentID,x]));
  const teachers=new Map(rows_('Teachers').map(x=>[x.TeacherID,x]));
- const sessions=rows_('Sessions').filter(x=>x.Status==='CLOSED');
+ const sessions=rows_('Sessions').filter(x=>x.Status==='CLOSED'&&
+  (!fromDate||x.SessionDate>=fromDate)&&(!toDate||x.SessionDate<=toDate));
  const byCourseSessions=new Map();
  for(const sess of sessions){if(!byCourseSessions.has(sess.CourseID))byCourseSessions.set(sess.CourseID,[]);byCourseSessions.get(sess.CourseID).push(sess)}
  const attendance=new Map(rows_('Attendance').map(x=>[x.UniqueKey,x]));
@@ -81,7 +82,7 @@ function groupAttendance_(rows,keyOf,labelOf){
 }
 function getDashboard(token){
  const actor=auth_(token);
- const all=assembleAnalytics_();
+ const all=cachedAnalytics_();
  const detail=actor.Role==='TEACHER'?all.detail.filter(x=>x.teacherId===actor.TeacherID):all.detail;
  const courses=actor.Role==='TEACHER'?all.courseReports.filter(x=>x.teacherId===actor.TeacherID):all.courseReports;
  const personTotals=new Map();
@@ -109,7 +110,7 @@ function getDashboard(token){
 }
 function getCourseReport(token,courseId){
  checkCourse_(token,courseId);
- const a=assembleAnalytics_(),course=a.courseReports.find(x=>x.courseId===courseId);
+ const a=cachedAnalytics_(),course=a.courseReports.find(x=>x.courseId===courseId);
  if(!course)throw Error('ไม่พบรายวิชา');
  const students=a.detail.filter(x=>x.courseId===courseId).sort((a,b)=>(b.absencePercent||0)-(a.absencePercent||0)||a.studentName.localeCompare(b.studentName,'th'));
  return {course,students};
@@ -135,7 +136,7 @@ function createReferral(token,courseId,studentId,reason){
   const {t,course}=checkCourse_(token,courseId);readOnlyExecutive_(t);
   const text=String(reason||'').trim().slice(0,600);
   if(text.length<10)throw Error('กรุณาระบุรายละเอียดปัญหาอย่างน้อย 10 ตัวอักษร');
-  const stat=assembleAnalytics_().detail.find(x=>x.courseId===courseId&&x.studentId===studentId);
+  const stat=cachedAnalytics_().detail.find(x=>x.courseId===courseId&&x.studentId===studentId);
   if(!stat||stat.risk!=='PROBLEM')throw Error('ส่งต่อได้เฉพาะนักเรียนที่ขาดเรียนตั้งแต่ 20% ในรายวิชานี้');
   const duplicates=rows_('Referrals').find(x=>x.CourseID===courseId&&x.StudentID===studentId&&['NEW','IN_REVIEW','FORWARDED'].includes(x.Status));
   if(duplicates)return {ok:true,duplicate:true,id:duplicates.ReferralID,status:duplicates.Status};
@@ -151,12 +152,21 @@ function listReferrals(token){
  const t=auth_(token);
  let list=rows_('Referrals');
  if(t.Role==='TEACHER')list=list.filter(x=>x.TeacherID===t.TeacherID);
+ const latest=new Map();
+ for(const f of rows_('ReferralFollowUps')){
+  const old=latest.get(f.ReferralID);
+  if(!old||old.ActionAt<f.ActionAt)latest.set(f.ReferralID,f);
+ }
  // Executives may VIEW the same full set as admins. Forwarding changes the status to FORWARDED and is logged.
  return list.map(x=>({id:x.ReferralID,studentId:x.StudentID,studentName:x.StudentName,courseId:x.CourseID,
   courseCode:x.CourseCode,teacherId:x.TeacherID,room:x.Room,department:x.Department,
   absentPercent:Number(x.AbsencePct)||0,attendancePercent:Number(x.AttendancePct)||0,
   reason:x.Reason,createdAt:x.CreatedAt,status:x.Status,adminNote:x.AdminNote,
-  forwardedAt:x.ExecutiveSentAt,adminBy:x.AdminReviewedBy}))
+  forwardedAt:x.ExecutiveSentAt,adminBy:x.AdminReviewedBy,
+  nextCheckDate:latest.get(x.ReferralID)?.NextCheckDate||'',
+  followUpStatus:latest.get(x.ReferralID)?.Status||'',
+  overdue:!!latest.get(x.ReferralID)?.NextCheckDate&&
+   latest.get(x.ReferralID).NextCheckDate<Utilities.formatDate(new Date(),TZ_,'yyyy-MM-dd')&&x.Status!=='RESOLVED'}))
   .sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 }
 function referralAction(token,id,action,note){
@@ -165,13 +175,14 @@ function referralAction(token,id,action,note){
   const row=rows_('Referrals').find(x=>x.ReferralID===String(id));
   if(!row)throw Error('ไม่พบรายการส่งต่อ');
   action=String(action||'').toUpperCase();
-  if(!['REVIEW','FORWARD','RESOLVE'].includes(action))throw Error('ประเภทการดำเนินการไม่ถูกต้อง');
+  if(!['REVIEW','FORWARD','FOLLOW_UP','RESOLVE'].includes(action))throw Error('ประเภทการดำเนินการไม่ถูกต้อง');
   if(action==='REVIEW'&&row.Status!=='NEW')throw Error('รายการนี้ไม่ได้รอตรวจสอบ');
   if(action==='FORWARD'&&!['NEW','IN_REVIEW'].includes(row.Status))throw Error('รายการนี้ไม่พร้อมส่งต่อ');
-  if(action==='RESOLVE'&&!['IN_REVIEW','FORWARDED'].includes(row.Status))throw Error('สถานะยังไม่พร้อมปิดเรื่อง');
+  if(action==='FOLLOW_UP'&&row.Status!=='FORWARDED')throw Error('ต้องส่งต่อผู้บริหารก่อนติดตามผล');
+  if(action==='RESOLVE'&&!['IN_REVIEW','FORWARDED','FOLLOW_UP'].includes(row.Status))throw Error('สถานะยังไม่พร้อมปิดเรื่อง');
   const detail=String(note||'').trim().slice(0,600);
   if(detail.length<5)throw Error('ระบุรายละเอียดการดำเนินงานอย่างน้อย 5 ตัวอักษร');
-  const next=action==='REVIEW'?'IN_REVIEW':action==='FORWARD'?'FORWARDED':'RESOLVED',at=now_();
+  const next=action==='REVIEW'?'IN_REVIEW':action==='FORWARD'?'FORWARDED':action==='FOLLOW_UP'?'FOLLOW_UP':'RESOLVED',at=now_();
   const sh=tab_('Referrals');
   sh.getRange(row._row,14).setValue(next);
   sh.getRange(row._row,15,1,3).setValues([[t.UserID,at,detail]]);
