@@ -1,13 +1,13 @@
 /**
  * KDTC TEACHER ATTENDANCE - separate standalone Google Apps Script project.
  * No writes to the legacy activity database. Requires Script Properties:
- * TEACHER_SHEET_ID, SOURCE_SHEET_ID, BOOTSTRAP_ADMIN_ID, BOOTSTRAP_ADMIN_PIN.
- * Run setupFromSource_ and bootstrapAdmin_ from the script editor, in that order.
- * No PIN, pepper, student list, or credential belongs in GitHub.
+ * TEACHER_SHEET_ID, SOURCE_SHEET_ID, HOMEROOM_VERIFY_URL, HOMEROOM_SHARED_SECRET.
+ * Home Room remains the authority for credentials. Never store/copy teacher PINs here.
+ * Run setupFromSource_ in the Apps Script editor only after restricting Sheet sharing.
  */
 const TZ_='Asia/Bangkok';
 const HEADERS_={
- Teachers:['TeacherID','Name','Department','Email','Role','Active','Salt','PinHash','FailedAttempts','LockedUntil','AuthVersion','PinChangedAt'],
+ Teachers:['TeacherID','Name','Department','Email','Role','Active','Salt','PinHash','FailedAttempts','LockedUntil','AuthVersion','PinChangedAt','HomeRoomUserID'],
  Students:['StudentID','Name','ClassID','Department','Level','EnrollStatus','ScanCode','SourceUpdatedAt'],
  Courses:['CourseID','CourseCode','Name','ClassID','TeacherID','TeacherEmail','Active','SourceReviewStatus','CreatedAt','Term'],
  Enrollments:['CourseID','StudentID','Status','UpdatedAt','ApprovedBy'],
@@ -28,14 +28,8 @@ function now_(){return new Date().toISOString()}
 function lock_(fn){const lock=LockService.getScriptLock();if(!lock.tryLock(20000))throw Error('ระบบกำลังบันทึกข้อมูล กรุณาลองอีกครั้ง');try{return fn()}finally{lock.releaseLock()}}
 function hash_(s){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,s,Utilities.Charset.UTF_8).map(x=>('0'+(x&255).toString(16)).slice(-2)).join('')}
 function rand_(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'')}
-function securePepper_(){let p=prop_('PIN_PEPPER');if(!p){p=rand_();PropertiesService.getScriptProperties().setProperty('PIN_PEPPER',p)}return p}
-function pinHash_(pin,salt){return hash_(salt+'|'+pin+'|'+securePepper_())}
 function truth_(s){return String(s).toUpperCase()==='TRUE'}
 function teacher_(id){return rows_('Teachers').find(t=>t.TeacherID===id)}
-function writeTeacher_(t,updates){
- const s=tab_('Teachers');const h=HEADERS_.Teachers;
- Object.keys(updates).forEach(k=>{const j=h.indexOf(k);if(j<0)throw Error('ช่องไม่ถูกต้อง');s.getRange(t._row,j+1).setValue(String(updates[k]))});
-}
 function auth_(token){
  if(typeof token!=='string'||!token||token.length>150)throw Error('กรุณาเข้าสู่ระบบ');
  const cache=CacheService.getScriptCache().get('TA_'+hash_(token));if(!cache)throw Error('หมดเวลาการเข้าสู่ระบบ กรุณาเข้าสู่ระบบอีกครั้ง');
@@ -62,7 +56,7 @@ function setSetting_(key,val){
  if(r)s.getRange(r._row,2).setValue(String(val));
  else s.appendRow([key,String(val),'']);
 }
-function publicStatus(){return {ready:setting_('IMPORT_STATUS','')==='READY',timeZone:TZ_,version:'1.0.0'}}
+function publicStatus(){return {ready:setting_('IMPORT_STATUS','')==='READY',authReady:!!(prop_('HOMEROOM_VERIFY_URL')&&prop_('HOMEROOM_SHARED_SECRET')),timeZone:TZ_,version:'1.1.0'}}
 function doGet(e){
  if(!e||e.parameter.mode!=='teacherBridge'||!/^[0-9a-f]{32,64}$/i.test(String(e.parameter.nonce||'')))
   return HtmlService.createHtmlOutput('KDTC Teacher Attendance API. Open the GitHub Pages teacher interface.').setTitle('KDTC Teacher Attendance');
@@ -70,22 +64,46 @@ function doGet(e){
  template.bridgeNonce=String(e.parameter.nonce);
  return template.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL).setTitle('KDTC Teacher Bridge');
 }
+/**
+ * TRUSTED SERVER-TO-SERVER ADAPTER: Home Room must expose a private verifier
+ * using the user's existing authentication code. This subsystem never accepts
+ * a caller-provided role or a locally stored password hash.
+ * Home Room verifier's JSON response contract:
+ * {ok:true, userId:"U004", active:true, kind:"TEACHER"}
+ * Failed validation MUST return ok:false and never echo credentials.
+ */
+function verifyHomeRoom_(userId,credential){
+ const endpoint=prop_('HOMEROOM_VERIFY_URL'),secret=prop_('HOMEROOM_SHARED_SECRET');
+ if(!endpoint||!secret||secret.length<24)throw Error('ยังไม่เชื่อมระบบยืนยันตัวตน Home Room กรุณาให้ผู้ดูแลตั้งค่า');
+ if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(endpoint))throw Error('ลิงก์ตรวจสอบ Home Room ไม่ถูกต้อง');
+ const response=UrlFetchApp.fetch(endpoint,{
+  method:'post',contentType:'application/json',muteHttpExceptions:true,followRedirects:true,
+  payload:JSON.stringify({action:'KDTC_VERIFY_HOMEROOM_V1',userId,credential,sharedSecret:secret})
+ });
+ if(response.getResponseCode()!==200)throw Error('ตรวจสอบบัญชี Home Room ไม่สำเร็จ');
+ let result;try{result=JSON.parse(response.getContentText())}catch(_){throw Error('ระบบ Home Room ไม่ตอบผลตรวจสอบที่ถูกต้อง')}
+ if(result.ok!==true||result.userId!==userId||result.active!==true||result.kind!=='TEACHER')throw Error('รหัสผู้ใช้หรือรหัสผ่าน Home Room ไม่ถูกต้อง');
+ return result;
+}
 function login(id,pin){
  id=String(id||'').trim().toUpperCase();pin=String(pin||'');
- if(!/^T\d{3,4}$/.test(id)||!/^\d{8,12}$/.test(pin))throw Error('รหัสครูหรือ PIN ไม่ถูกต้อง');
- return lock_(()=>{
-  const t=teacher_(id),n=Date.now();
-  if(!t||!truth_(t.Active)||!t.PinHash)throw Error('บัญชีนี้ยังไม่ได้เปิดใช้ หรือข้อมูลไม่ถูกต้อง');
-  if(t.LockedUntil&&Date.parse(t.LockedUntil)>n)throw Error('บัญชีล็อกชั่วคราว กรุณาติดต่อผู้ดูแล');
-  if(pinHash_(pin,t.Salt)!==t.PinHash){
-   const tries=Number(t.FailedAttempts||0)+1;
-   writeTeacher_(t,{FailedAttempts:tries,LockedUntil:tries>=5?new Date(n+15*60000).toISOString():''});
-   throw Error(tries>=5?'บัญชีถูกล็อก 15 นาที':'รหัสครูหรือ PIN ไม่ถูกต้อง');
-  }
-  writeTeacher_(t,{FailedAttempts:0,LockedUntil:''});
-  const token=rand_();CacheService.getScriptCache().put('TA_'+hash_(token),id+'|'+t.AuthVersion,21600);
-  return {token,teacherId:id,name:t.Name,role:t.Role};
- });
+ if(!/^U\d{3,4}$/.test(id)||!pin||pin.length>128)throw Error('กรอกรหัสครูและรหัสผ่านเดียวกับ Home Room');
+ const t=rows_('Teachers').find(x=>x.HomeRoomUserID===id&&truth_(x.Active));
+ if(!t)throw Error('บัญชีครูยังไม่ได้จับคู่กับ Home Room');
+ if(t.LockedUntil&&Date.parse(t.LockedUntil)>Date.now())throw Error('ถูกจำกัดการเข้าใช้ชั่วคราว กรุณาลองใหม่ภายหลัง');
+ try{verifyHomeRoom_(id,pin)}catch(e){
+  if(e.message.startsWith('ยังไม่เชื่อม')||e.message.startsWith('ลิงก์ตรวจสอบ')||e.message.startsWith('ตรวจสอบบัญชี Home Room ไม่สำเร็จ')||e.message.startsWith('ระบบ Home Room ไม่ตอบ'))throw e;
+  lock_(()=>{
+    const sh=tab_('Teachers'),fresh=teacher_(t.TeacherID),failed=Number(fresh.FailedAttempts||0)+1;
+    sh.getRange(fresh._row,9,1,2).setValues([[failed,failed>=5?new Date(Date.now()+15*60000).toISOString():'']]);
+  });
+  throw Error('รหัสผู้ใช้หรือรหัสผ่าน Home Room ไม่ถูกต้อง');
+ }
+ lock_(()=>{const sh=tab_('Teachers');sh.getRange(t._row,9,1,2).setValues([[0,'']])});
+ const token=rand_();
+ CacheService.getScriptCache().put('TA_'+hash_(token),t.TeacherID+'|'+t.AuthVersion,21600);
+ audit_(t.TeacherID,'HOMEROOM_LOGIN',t.TeacherID,{source:'Home Room'});
+ return {token,teacherId:t.TeacherID,name:t.Name,role:t.Role};
 }
 function me(token){const t=auth_(token);return {teacherId:t.TeacherID,name:t.Name,role:t.Role}}
 function logout(token){if(typeof token==='string'&&token)CacheService.getScriptCache().remove('TA_'+hash_(token));return {ok:true}}
@@ -169,7 +187,7 @@ function closeSession(token,sessionId){
 }
 function getSessionStats_(sessionId){
  const rows=rows_('Attendance').filter(x=>x.SessionID===sessionId);
- return {total:rows.length,present:rows.filter(x=>x.Status==='PRESENT').length,late:rows.filter(x=>x.Status==='LATE').length,absent:rows.filter(x=>x.Status==='ABSENT').length};
+ return {total:rows.length,present:rows.filter(x=>x.Status==='PRESENT').length,late:rows.filter(x=>x.Status==='LATE').length,absent:rows.filter(x=>x.Status==='ABSENT').length,leave:rows.filter(x=>x.Status==='LEAVE').length};
 }
 function getReport(token,courseId){
  checkCourse_(token,courseId);
@@ -180,47 +198,48 @@ function getReport(token,courseId){
  const result=approved.map(e=>{
   const r=data.filter(x=>x.StudentID===e.StudentID);
   const present=r.filter(x=>x.Status==='PRESENT').length,late=r.filter(x=>x.Status==='LATE').length;
-  const absent=Math.max(0,closed.length-present-late);
-  return {studentId:e.StudentID,name:students.get(e.StudentID)?.Name||'',present,late,absent,percent:closed.length?Math.round(10000*(present+late)/closed.length)/100:null};
+  const leave=r.filter(x=>x.Status==='LEAVE').length;
+  const absent=Math.max(0,closed.length-present-late-leave);
+  return {studentId:e.StudentID,name:students.get(e.StudentID)?.Name||'',present,late,absent,leave,percent:closed.length?Math.round(10000*(present+late)/closed.length)/100:null};
  });
  return {courseId,closedSessions:closed.length,students:result};
 }
+function getCourseSessions(token,courseId){
+ checkCourse_(token,courseId);
+ return rows_('Sessions').filter(x=>x.CourseID===courseId).sort((a,b)=>Date.parse(b.StartAt)-Date.parse(a.StartAt)).slice(0,40).map(sessionView_);
+}
+function getSessionAttendance(token,sessionId){
+ const {session,course}=checkSession_(token,sessionId);
+ const studentMap=new Map(rows_('Students').map(x=>[x.StudentID,x]));
+ const enrolled=rows_('Enrollments').filter(x=>x.CourseID===course.CourseID&&x.Status==='APPROVED');
+ const recorded=new Map(rows_('Attendance').filter(x=>x.SessionID===sessionId).map(x=>[x.StudentID,x]));
+ return {session:sessionView_(session),students:enrolled.map(x=>{
+  const a=recorded.get(x.StudentID),student=studentMap.get(x.StudentID);
+  return {studentId:x.StudentID,name:student?student.Name:'ไม่พบข้อมูล',classId:student?student.ClassID:'',status:a?a.Status:'',scanAt:a?a.ScanAt:'',note:a?a.Note:''};
+ }).sort((a,b)=>a.studentId.localeCompare(b.studentId))};
+}
 function updateAttendance(token,sessionId,studentId,newStatus,note){
  return lock_(()=>{
-  if(!['PRESENT','LATE','ABSENT'].includes(newStatus))throw Error('สถานะไม่ถูกต้อง');
-  if(String(note||'').trim().length<5)throw Error('ระบุเหตุผลการแก้ไขอย่างน้อย 5 ตัวอักษร');
-  const {session,t}=checkSession_(token,sessionId);
-  if(session.Status!=='CLOSED')throw Error('แก้ไขด้วยเมนูนี้ได้เมื่อปิดคาบแล้ว');
-  const key=sessionId+'|'+studentId,entry=rows_('Attendance').find(x=>x.UniqueKey===key);
-  if(!entry)throw Error('ไม่พบรายการเช็กชื่อของนักเรียน');
-  const sh=tab_('Attendance'),old=entry.Status;
-  sh.getRange(entry._row,6).setValue(newStatus);
-  sh.getRange(entry._row,10,1,2).setValues([[now_(),String(note).slice(0,250)]]);
-  audit_(t.TeacherID,'CORRECT_ATTENDANCE',key,{before:old,after:newStatus,note:String(note).slice(0,250)});
-  return {ok:true,before:old,after:newStatus};
- });
-}
-function listTeachers(token){
- const t=auth_(token);if(t.Role!=='ADMIN')throw Error('ไม่มีสิทธิ์ผู้ดูแล');
- return rows_('Teachers').map(x=>({teacherId:x.TeacherID,name:x.Name,role:x.Role,hasPin:!!x.PinHash}));
-}
-function setPin_(t,pin){
- if(!/^\d{8,12}$/.test(String(pin)))throw Error('PIN ต้องเป็นตัวเลข 8-12 หลัก');
- const salt=rand_(),next=String(Number(t.AuthVersion||1)+1);
- writeTeacher_(t,{Salt:salt,PinHash:pinHash_(String(pin),salt),FailedAttempts:0,LockedUntil:'',AuthVersion:next,PinChangedAt:now_()});
-}
-function adminSetPin(token,teacherId,pin){
- return lock_(()=>{
-  const caller=auth_(token);if(caller.Role!=='ADMIN')throw Error('ไม่มีสิทธิ์ผู้ดูแล');
-  const target=teacher_(String(teacherId));if(!target)throw Error('ไม่พบบัญชีครู');
-  setPin_(target,pin);audit_(caller.TeacherID,'RESET_PIN',target.TeacherID,{});return {ok:true};
- });
-}
-function changeMyPin(token,oldPin,newPin){
- return lock_(()=>{
-  const t=auth_(token);
-  if(pinHash_(String(oldPin),t.Salt)!==t.PinHash)throw Error('PIN เดิมไม่ถูกต้อง');
-  setPin_(t,String(newPin));logout(token);audit_(t.TeacherID,'CHANGE_PIN',t.TeacherID,{});return {ok:true};
+  newStatus=String(newStatus||'').toUpperCase();
+  const reason=String(note||'').trim().slice(0,250);
+  if(!['PRESENT','LATE','ABSENT','LEAVE'].includes(newStatus))throw Error('สถานะไม่ถูกต้อง');
+  if(reason.length<5)throw Error('ระบุเหตุผลแก้ไขอย่างน้อย 5 ตัวอักษร');
+  const {session,t,course}=checkSession_(token,sessionId);
+  if(!['OPEN','CLOSED'].includes(session.Status))throw Error('ไม่สามารถแก้ไขคาบนี้ได้');
+  studentId=String(studentId||'').trim();
+  if(!rows_('Enrollments').some(e=>e.CourseID===course.CourseID&&e.StudentID===studentId&&e.Status==='APPROVED'))throw Error('นักเรียนไม่ได้รับการยืนยันในรายวิชา');
+  const unique=sessionId+'|'+studentId,entry=rows_('Attendance').find(x=>x.UniqueKey===unique);
+  const sh=tab_('Attendance'),changedAt=now_(),previous=entry?entry.Status:'NOT_RECORDED';
+  if(previous===newStatus) return {ok:true,unchanged:true,before:previous,after:newStatus};
+  if(entry){
+   // Keep original scan timestamp; change only current status / editor and note.
+   sh.getRange(entry._row,6).setValue(newStatus);
+   sh.getRange(entry._row,9,1,3).setValues([[t.TeacherID,changedAt,reason]]);
+  }else{
+   sh.appendRow([rand_(),unique,sessionId,course.CourseID,studentId,newStatus,'','MANUAL',t.TeacherID,changedAt,reason]);
+  }
+  audit_(t.TeacherID,'CORRECT_ATTENDANCE',unique,{before:previous,after:newStatus,note:reason,sessionState:session.Status,changedAt});
+  return {ok:true,unchanged:false,before:previous,after:newStatus};
  });
 }
 /** OWNER-ONLY. Functions suffixed "_" are not callable from google.script.run. */
@@ -241,15 +260,17 @@ function setupFromSource_(){
  const props=PropertiesService.getScriptProperties();
  if(!prop_('TEACHER_SHEET_ID')||!prop_('SOURCE_SHEET_ID'))throw Error('ใส่ Script Properties ของชีทใหม่และต้นทางก่อน');
  if(prop_('TEACHER_SHEET_ID')===prop_('SOURCE_SHEET_ID'))throw Error('ห้ามใช้ชีทต้นทางเป็นชีทปลายทาง');
- ensurePrivate_();securePepper_();
+ ensurePrivate_();
  return lock_(()=>{
   const source=SpreadsheetApp.openById(prop_('SOURCE_SHEET_ID'));
   const read=name=>{const sh=source.getSheetByName(name);if(!sh)throw Error('ไม่พบตารางต้นทาง '+name);return sh.getDataRange().getDisplayValues().slice(1).filter(r=>r[0])};
-  const teachers=read('ImportTeachers'),students=read('Students'),review=read('ImportCourseReview'),courses=read('Courses'),enrolls=read('Enrollments');
+  const teachers=read('ImportTeachers'),students=read('Students'),review=read('ImportCourseReview'),courses=read('Courses'),enrolls=read('Enrollments'),registrations=read('TeacherRegistration');
+  const normalizeName_=x=>String(x||'').replace(/\s+/g,'').trim();
+  const regByName=new Map();for(const r of registrations){const k=normalizeName_(r[1]);if(!regByName.has(k))regByName.set(k,[]);regByName.get(k).push(r[0])}
   const reviewMap=new Map(review.map(r=>[r[0],r]));
   const adminId=prop_('BOOTSTRAP_ADMIN_ID')||'T004';
   const imported={};
-  imported.Teachers=appendMissing_('Teachers',teachers.map(r=>[r[0],r[1],r[2],r[3],r[0]===adminId?'ADMIN':'TEACHER','TRUE','','','0','','1','']),[0]);
+  imported.Teachers=appendMissing_('Teachers',teachers.map(r=>{const ids=regByName.get(normalizeName_(r[1]))||[];return [r[0],r[1],r[2],r[3],r[0]===adminId?'ADMIN':'TEACHER','TRUE','','','0','','1','',ids.length===1?ids[0]:'']}),[0]);
   imported.Students=appendMissing_('Students',students.map(r=>[r[0],r[1],r[2],r[3],r[4],r[6],'',r[7]]),[0]);
   imported.Courses=appendMissing_('Courses',courses.map(r=>{
    const sourceId=String(r[0]).match(/^AC69_2_(T\d+-C\d+)_/),reviewRow=sourceId?reviewMap.get(sourceId[1]):null;
@@ -261,15 +282,4 @@ function setupFromSource_(){
   audit_('SYSTEM','READ_ONLY_IMPORT','KDTC_SOURCE',imported);
   return imported;
  });
-}
-function bootstrapAdmin_(){
- const p=PropertiesService.getScriptProperties();
- const id=prop_('BOOTSTRAP_ADMIN_ID')||'T004',pin=prop_('BOOTSTRAP_ADMIN_PIN');
- if(!pin)throw Error('ตั้ง BOOTSTRAP_ADMIN_PIN ใน Script Properties ก่อน');
- ensurePrivate_();
- const t=teacher_(id);if(!t||t.Role!=='ADMIN')throw Error('ครูผู้ดูแลไม่ได้ระบุไว้ในตาราง Teachers');
- if(t.PinHash)throw Error('บัญชีผู้ดูแลตั้ง PIN แล้ว ห้าม bootstrap ซ้ำ');
- lock_(()=>{setPin_(t,pin);audit_(id,'BOOTSTRAP_ADMIN',id,{})});
- p.deleteProperty('BOOTSTRAP_ADMIN_PIN');
- return 'เริ่มต้นผู้ดูแลเรียบร้อย กรุณาลบ PIN ชั่วคราวออกจากประวัติการตั้งค่าที่เก็บไว้';
 }
