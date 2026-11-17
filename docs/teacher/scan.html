@@ -1,0 +1,66 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="referrer" content="no-referrer">
+<title>KDTC เครื่องสแกนรายวิชา</title>
+<style>
+:root{font-family:system-ui,"Noto Sans Thai",sans-serif;color:#18304c;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}main{max-width:650px;margin:auto;padding:14px}.top{background:linear-gradient(140deg,#11284b,#245183);border-radius:16px;padding:17px;color:white;border-bottom:4px solid #d5a44a}.top h1{font-size:18px;margin:0}.top p{font-size:12px;color:#d1dce9;margin:4px 0 0}.card{margin-top:12px;background:white;border:1px solid #dce4f0;border-radius:13px;padding:15px}.info{font-size:13px;color:#6a7d95}.msg{padding:13px;border-radius:9px;margin-top:11px;background:#e9f0fa;font-size:15px;font-weight:750;text-align:center}.msg.ok{background:#e6f7ed;color:#107f52}.msg.bad{background:#fff0f0;color:#ad3840}.controls{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:10px;padding:11px 15px;background:#153d6c;color:white;font:inherit;font-weight:750;cursor:pointer}.alt{background:#ecf1f7;color:#254f79}input{width:100%;padding:11px 12px;border:1px solid #cdd8e7;border-radius:9px;font:inherit}.read{margin-top:12px;max-width:440px;margin-inline:auto;overflow:hidden;border-radius:11px}.read video{max-width:100%}small{display:block;color:#72839c;margin-top:12px}footer{text-align:center;color:#7588a0;margin-top:13px;font-size:11px}
+</style></head><body><main><div class="top"><h1>▣ KDTC • สแกนเข้าเรียน</h1><p>กล้องสแกน QR เท่านั้น • ประมวลผลและบันทึกผ่าน Apps Script</p></div>
+<div class="card"><div class="info" id="linkState">กำลังเชื่อมกับระบบครูผู้สอน…</div><div class="read" id="reader"></div>
+<div class="controls"><button id="start">เปิดกล้องสแกน</button><button class="alt" id="stop">หยุดกล้อง</button></div>
+<form id="manual"><label for="studentId" class="info">เครื่องอ่าน/กรอกรหัสนักเรียน</label><input id="studentId" inputmode="text" autocomplete="off" placeholder="รหัสนักเรียน / QR"><div class="controls"><button type="submit">ส่งรหัสไป Apps Script</button></div></form>
+<div class="msg" id="result">พร้อมรับข้อมูลจาก QR</div>
+<small>GitHub ไม่เก็บรายชื่อนักเรียน PIN หรือข้อมูลเช็กชื่อ ผลการบันทึกและชื่อผู้เรียนแสดงใน Apps Script เท่านั้น</small></div><footer>KDTC Teacher Scanner • GitHub Pages</footer>
+</main>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script><script>
+'use strict';
+const $=id=>document.getElementById(id),nonce=new URLSearchParams(location.hash.slice(1)).get('nonce')||'';
+history.replaceState(null,'',location.pathname+location.search);
+let target=null,targetOrigin='',ready=false,busy=false,reader=null,lastCode='',lastTime=0;
+function allowedOrigin(origin){
+ try{const u=new URL(origin);return u.protocol==='https:'&&(u.hostname==='script.google.com'||u.hostname==='script.googleusercontent.com'||u.hostname.endsWith('-script.googleusercontent.com'))}
+ catch(e){return false}
+}
+function msg(text,good){$('result').textContent=text;$('result').className='msg '+(good===true?'ok':good===false?'bad':'')}
+function post(data){if(!target||!targetOrigin)return;target.postMessage(Object.assign({nonce},data),targetOrigin)}
+function handshake(){
+ const receiver=window.opener||window.parent;if(!receiver||receiver===window)return;
+ receiver.postMessage({kind:'KDTC_SCANNER_READY',nonce},'*');
+}
+window.addEventListener('message',event=>{
+ if(!allowedOrigin(event.origin))return;
+ if(event.source!==window.parent&&event.source!==window.opener)return;
+ const d=event.data;if(!d||d.nonce!==nonce)return;
+ if(d.kind==='KDTC_SCANNER_CONFIG'){
+  target=event.source;targetOrigin=event.origin;ready=!!d.enabled;
+  $('linkState').textContent=ready?'เชื่อมต่อ Apps Script แล้ว • พร้อมสแกน':'เชื่อมต่อแล้ว • กรุณาเปิดคาบเรียนใน Apps Script';
+ }
+ if(d.kind==='KDTC_SCAN_RESULT'){
+  busy=false;lastCode='';lastTime=0;
+  const r=d.result||{};
+  msg(r.ok?(r.duplicate?'สแกนซ้ำ • ไม่บันทึกเพิ่ม':r.status==='PRESENT'?'ผ่านครับ':r.status==='LATE'?'สายแล้วครับ':r.status==='LEAVE'?'ลา':'ขาดครับ'):(r.error||'บันทึกไม่สำเร็จ'),!!r.ok);
+ }
+});
+function submit(raw){
+ const code=String(raw||'').trim();
+ if(!ready)return msg('กรุณาเปิดคาบเรียนใน Apps Script ก่อน',false);
+ if(busy||!code||code.length>150)return;
+ if(code===lastCode&&Date.now()-lastTime<1800)return;
+ busy=true;lastCode=code;lastTime=Date.now();
+ msg('ส่งรหัสให้ Apps Script ตรวจสอบและบันทึก…');
+ post({kind:'KDTC_STUDENT_SCAN',code});
+ setTimeout(()=>{if(busy){busy=false;msg('ยังไม่ได้รับคำยืนยันจาก Apps Script กรุณาตรวจสอบก่อนสแกนซ้ำ',false)}},25000);
+}
+async function startCamera(){
+ if(!ready)return msg('กรุณาเปิดคาบเรียนใน Apps Script ก่อน',false);
+ if(reader)return;
+ if(!window.Html5Qrcode)return msg('โหลดตัวอ่าน QR ไม่สำเร็จ ใช้เครื่องอ่านหรือกรอกรหัสแทนได้',false);
+ try{reader=new Html5Qrcode('reader');await reader.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220}},value=>submit(value),()=>{});msg('เปิดกล้องแล้ว • นำ QR มาวางในกรอบ')}
+ catch(e){reader=null;msg('เปิดกล้องไม่สำเร็จ: '+(e.message||String(e)),false)}
+}
+async function stopCamera(){
+ if(!reader)return;const x=reader;reader=null;try{await x.stop()}catch(e){}try{await x.clear()}catch(e){}
+}
+$('start').onclick=startCamera;$('stop').onclick=stopCamera;
+$('manual').onsubmit=e=>{e.preventDefault();const v=$('studentId').value;$('studentId').value='';submit(v)};
+if(!/^[0-9a-f]{32}$/.test(nonce))msg('กรุณาเปิดหน้าเครื่องสแกนผ่านระบบหลัก Apps Script',false);
+else handshake();
+setInterval(()=>{if(nonce&&!target)handshake()},1600);
+</script></body></html>
