@@ -174,14 +174,15 @@ async function loadReport(){
   refreshStats('reportStats',[['คาบที่สอนจริง',c.totalPeriods+' คาบ'],['ร้อยละเข้าเรียน',pct(c.attendedPercent)],['กลุ่มมีปัญหา',c.problem+' คน'],['กลุ่มเสี่ยง',c.risk+' คน']]);
   const parent=$('courseReportTable');parent.replaceChildren();
   const tab=elem('table'),th=elem('thead'),body=elem('tbody');
-  row(th,'th',['รหัส','นักเรียน','มา','สาย','ขาด','ลา','เข้าเรียน','ขาดเรียน','สถานะ','ส่งต่อ']);
+  row(th,'th',['รหัส','นักเรียน','ส่งต่อ','มา','สาย','ขาด','ลา','เข้าเรียน','ขาดเรียน','สถานะ']);
   APP.report.students.forEach(x=>{
-   const tr=row(body,'td',[x.studentId,x.studentName,x.present,x.late,x.absent,x.leave,pct(x.attendancePercent),pct(x.absencePercent)]);
-   const status=elem('td');status.append(pill(x.risk));tr.append(status);
+   const tr=row(body,'td',[x.studentId,x.studentName]);
    const act=elem('td');
    if(x.risk==='PROBLEM'&&APP.user.role!=='EXECUTIVE'){
     const btn=elem('button','ส่งต่อ','red slim');btn.onclick=()=>sendReferral(x);act.append(btn);
    }else act.textContent='—';tr.append(act);
+   [x.present,x.late,x.absent,x.leave,pct(x.attendancePercent),pct(x.absencePercent)].forEach(value=>tr.append(elem('td',value)));
+   const status=elem('td');status.append(pill(x.risk));tr.append(status);
   });
   tab.append(th,body);parent.append(tab);
   await refreshSessionSelect();
@@ -271,7 +272,7 @@ function showScanPage(){
 async function refreshActiveSession(){
  const courseId=$('scanCourse').value;APP.course=courseId;
  if(!courseId)return;
- try{APP.session=await rpc('getOpenSession',APP.token,courseId);updateSessionUi()}catch(e){notice(e.message,true)}
+ try{APP.session=await rpc('getOpenSession',APP.token,courseId);updateSessionUi();setScannerEnabled()}catch(e){notice(e.message,true)}
 }
 function updateSessionUi(){
  const x=APP.session;
@@ -282,13 +283,13 @@ function updateSessionUi(){
 async function startSession(){
  try{APP.course=$('scanCourse').value;
  APP.session=await rpc('startSession',APP.token,APP.course,$('topic').value,Number($('periods').value));
- updateSessionUi();notice('เปิดคาบเรียนแล้ว • GitHub พร้อมสแกน');}
+ updateSessionUi();setScannerEnabled();notice('เปิดคาบเรียนแล้ว • GitHub พร้อมสแกน');}
  catch(e){notice(e.message,true)}
 }
 async function closeSession(){
  if(!APP.session||!confirm('ปิดคาบเรียนและบันทึก ขาด ให้นักเรียนที่ยังไม่มีผลใช่หรือไม่?'))return;
  try{const r=await rpc('closeSession',APP.token,APP.session.sessionId);
- APP.session=null;updateSessionUi();notice('ปิดคาบแล้ว มา '+r.present+' สาย '+r.late+' ขาด '+r.absent+' ลา '+r.leave);
+ APP.session=null;updateSessionUi();setScannerEnabled();notice('ปิดคาบแล้ว มา '+r.present+' สาย '+r.late+' ขาด '+r.absent+' ลา '+r.leave);
  await reloadDashboard();}
  catch(e){notice(e.message,true)}
 }
@@ -300,9 +301,14 @@ async function handleScan(code){
   const message=result.name+' • '+(result.duplicate?'สแกนซ้ำ':STATES[result.status])+' • '+result.classId;
   $('scanResult').textContent=message;
   $('scanResult').className='scanResult '+(result.status==='PRESENT'?'good':result.status==='LATE'?'warn':'bad');
-  sendScannerAck({ok:true,name:result.name,duplicate:result.duplicate,status:result.status});
+  sendScannerAck({ok:true,duplicate:result.duplicate,status:result.status});
  }catch(e){$('scanResult').textContent=e.message;$('scanResult').className='scanResult bad';sendScannerAck({ok:false,error:e.message})}
  finally{APP.busy=false}
+}
+function setScannerEnabled(){
+ const payload={kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session};
+ const i=$('scannerFrame');if(i.contentWindow)i.contentWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
+ if(APP.scannerWindow&&!APP.scannerWindow.closed)APP.scannerWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
 }
 function sendScannerAck(data){
  const i=$('scannerFrame'),payload={kind:'KDTC_SCAN_RESULT',nonce:APP.scanNonce,result:data};
