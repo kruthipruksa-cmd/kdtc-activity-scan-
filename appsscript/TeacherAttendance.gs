@@ -33,7 +33,20 @@ function rand_(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid()
 function truth_(s){return String(s).toUpperCase()==='TRUE'}
 function teacher_(id){return rows_('Teachers').find(t=>t.TeacherID===id)}
 /** Activity SCAN Users is a read-only source of truth for role/activation. */
+function requireRestrictedSheets_(){
+ // The existing and new Sheets must not be writable through a public link.
+ for(const [label,id] of [['ข้อมูลผู้ใช้กิจกรรม',prop_('ACTIVITY_USERS_SHEET_ID')],['ข้อมูลครูผู้สอน',prop_('TEACHER_SHEET_ID')]]){
+  if(!id)throw Error('ยังไม่ตั้งค่าชีท '+label);
+  const access=DriveApp.getFileById(id).getSharingAccess();
+  if(access!==DriveApp.Access.PRIVATE)throw Error('เพื่อความปลอดภัย ต้องตั้งค่าการแชร์แบบ จำกัด (Restricted) ในชีท '+label+' ก่อนใช้งาน');
+ }
+}
+function allowedRoleId_(id,settingName,defaults){
+ const allowed=(prop_(settingName)||defaults).split(',').map(x=>x.trim().toUpperCase()).filter(Boolean);
+ return allowed.includes(id);
+}
 function activityUser_(id){
+ requireRestrictedSheets_();
  const sheetId=prop_('ACTIVITY_USERS_SHEET_ID');
  if(!sheetId)throw Error('ยังไม่ได้กำหนด ACTIVITY_USERS_SHEET_ID');
  const sh=SpreadsheetApp.openById(sheetId).getSheetByName('Users');
@@ -43,8 +56,11 @@ function activityUser_(id){
  const hit=list.find(x=>String(x[0]).trim().toUpperCase()===id);
  if(!hit||String(hit[6]).toUpperCase()!=='TRUE')throw Error('ไม่พบผู้ใช้งานที่เปิดสิทธิ์');
  const type=String(hit[2]).trim().toUpperCase();
- const role=type==='ADMIN'?'ADMIN':type==='ACTIVITY'?'EXECUTIVE':type==='TEACHER'?'TEACHER':'';
- if(!role)throw Error('สิทธิ์ผู้ใช้งานไม่รองรับ');
+ let role='';
+ if(type==='ADMIN'&&allowedRoleId_(id,'ADMIN_USER_IDS','U035,U036'))role='ADMIN';
+ else if(type==='ACTIVITY'&&allowedRoleId_(id,'EXECUTIVE_USER_IDS','U001,U002'))role='EXECUTIVE';
+ else if(type==='TEACHER')role='TEACHER';
+ if(!role)throw Error('สิทธิ์ผู้ใช้งานยังไม่ได้รับอนุญาตในระบบครูผู้สอน');
  return {id,name:String(hit[1]),role,department:String(hit[3]||'')};
 }
 function actor_(id){
