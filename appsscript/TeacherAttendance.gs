@@ -217,19 +217,14 @@ function getSessionStats_(sessionId){
  return {total:rows.length,present:rows.filter(x=>x.Status==='PRESENT').length,late:rows.filter(x=>x.Status==='LATE').length,absent:rows.filter(x=>x.Status==='ABSENT').length,leave:rows.filter(x=>x.Status==='LEAVE').length};
 }
 function getReport(token,courseId){
- checkCourse_(token,courseId);
- const closed=rows_('Sessions').filter(s=>s.CourseID===courseId&&s.Status==='CLOSED');
- const approved=rows_('Enrollments').filter(e=>e.CourseID===courseId&&e.Status==='APPROVED');
- const students=new Map(rows_('Students').map(s=>[s.StudentID,s]));
- const data=rows_('Attendance').filter(x=>x.CourseID===courseId&&closed.some(s=>s.SessionID===x.SessionID));
- const result=approved.map(e=>{
-  const r=data.filter(x=>x.StudentID===e.StudentID);
-  const present=r.filter(x=>x.Status==='PRESENT').length,late=r.filter(x=>x.Status==='LATE').length;
-  const leave=r.filter(x=>x.Status==='LEAVE').length;
-  const absent=Math.max(0,closed.length-present-late-leave);
-  return {studentId:e.StudentID,name:students.get(e.StudentID)?.Name||'',present,late,absent,leave,percent:closed.length?Math.round(10000*(present+late)/closed.length)/100:null};
- });
- return {courseId,closedSessions:closed.length,students:result};
+ const report=getCourseReport(token,courseId);
+ return {courseId,closedSessions:report.course.closedSessions,
+  totalPeriods:report.course.totalPeriods,
+  students:report.students.map(x=>({
+    studentId:x.studentId,name:x.studentName,present:x.present,late:x.late,
+    absent:x.absent,leave:x.leave,periods:x.periods,
+    percent:x.attendancePercent,absencePercent:x.absencePercent,risk:x.risk
+  }))};
 }
 function getCourseSessions(token,courseId){
  checkCourse_(token,courseId);
