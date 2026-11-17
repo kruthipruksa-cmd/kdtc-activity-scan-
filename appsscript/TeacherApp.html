@@ -51,7 +51,7 @@
 <div class="row"><select id="editSession" style="flex:1"></select><button id="showSession" class="alt">ดูผลคาบนี้</button></div><div id="editAttendance" class="tableScroll"></div></div></section>
 <section id="page-monitor" class="page" hidden><h2 class="sectionTitle">นักเรียนที่ต้องเฝ้าระวัง</h2><div class="panel"><div class="row noPrint"><button data-risk="ALL" class="alt">ทั้งหมด</button><button data-risk="PROBLEM" class="red">มีปัญหา ≥20%</button><button data-risk="RISK" class="alt">เสี่ยง 10–19%</button></div>
 <p class="muted">จำแนกจากร้อยละขาดเรียนจริง ไม่รวมสถานะลา • คำนวณจากคาบที่ปิดแล้ว</p><div id="riskStudents" class="tableScroll"></div></div></section>
-<section id="page-referrals" class="page" hidden><h2 class="sectionTitle">นักเรียนส่งต่อ</h2><div class="panel"><div class="between"><h2>รายการที่ครูส่งต่อเพื่อช่วยเหลือ</h2><button id="refreshReferrals" class="alt noPrint">รีเฟรช</button></div><p class="muted" id="referralHint">ผู้ดูแลตรวจสอบ และส่งรายงานให้ผู้บริหารผ่านเมนูนี้</p>
+<section id="page-referrals" class="page" hidden><h2 class="sectionTitle">นักเรียนส่งต่อ</h2><div class="panel"><div class="between"><h2>รายการที่ครูส่งต่อเพื่อช่วยเหลือ</h2><div class="row noPrint"><button id="refreshReferrals" class="alt">รีเฟรช</button><button id="printReferrals" class="gold">พิมพ์รายงาน / PDF</button></div></div><p class="muted" id="referralHint">ผู้ดูแลตรวจสอบ และส่งรายงานให้ผู้บริหารผ่านเมนูนี้</p>
 <div id="referralTable" class="tableScroll"></div></div></section>
 <footer class="muted" style="text-align:center;padding:8px 0 20px">KDTC • ระบบหลัก Google Apps Script • กล้องสแกน GitHub Pages • เวลาประเทศไทย</footer>
 </main></div></div></div>
@@ -352,6 +352,7 @@ $('approveRoster').onclick=approveRoster;
 $('showReport').onclick=loadReport;
 $('showSession').onclick=loadAttendanceForEdit;
 $('refreshReferrals').onclick=loadReferrals;
+$('printReferrals').onclick=()=>window.print();
 $('scanCourse').onchange=refreshActiveSession;
 $('startSession').onclick=startSession;
 $('closeSession').onclick=closeSession;
