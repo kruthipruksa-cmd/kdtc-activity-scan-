@@ -1,4 +1,55 @@
-# KDTC ครูผู้สอน — Apps Script เป็นระบบหลัก / GitHub เฉพาะกล้องสแกน
+# KDTC ครูผู้สอน — FINAL PRODUCTION CODE
+
+## อัปเกรดครบ 8 ส่วน — ประสิทธิภาพและการเฝ้าระวัง (17 พ.ย. 2569)
+
+**สถานะ SOURCE READY / NOT DEPLOYED:** อัปเดตโค้ดใน GitHub และสร้างหัวตารางในชีทเช็กชื่อใหม่แล้ว ยังไม่ได้ติดตั้ง/ทดสอบจริงในโครงการ Apps Script เนื่องจากช่องทางเชื่อมต่อยังไม่รองรับการแก้ไข/Deploy Google Apps Script
+
+### ไฟล์ Apps Script ที่ต้องติดตั้งทั้งหมด
+1. `TeacherAttendance.gs` — ระบบ Login/สิทธิ์/เช็กชื่อ/แก้ผล
+2. `TeacherDashboard.gs` — รายงานวิชา ห้อง แผนก สรุป 10%/20% และส่งต่อ
+3. `TeacherPerformance.gs` — แคชบีบอัดรายงาน TTL 75 วินาที, ดัชนีสแกน TTL 60 วินาที, แคชตัวตน TTL 30 วินาที, TextFinder ป้องกันบันทึกซ้ำ; invalidate หลังปิดคาบ แก้ไขผล และอนุมัติรายชื่อ
+4. `TeacherAutomation.gs` — ตารางสอนวันนี้/รายสัปดาห์, ตัวเลือกเปิด–ปิดคาบอัตโนมัติ, แจ้งคาบที่เปิดค้าง
+5. `TeacherInsights.gs` — แจ้งเตือนก่อนเสี่ยง, นักเรียน 360, ประวัติ Audit, รายงานผู้บริหารเลือกวันที่/แผนก, CSV สำหรับ Excel, ติดตามส่งต่อ
+6. `TeacherApp.html` — หน้าระบบหลักกรม–ทอง Apps Script
+7. `TeacherExtras.html` — เมนูเสริมแบบ Lazy Loading (จำเป็นต้องติดตั้งชื่อไฟล์ตรงกันเพื่อให้ include_ ทำงาน)
+
+**GitHub Pages:** `docs/teacher/scan.html` เป็นเครื่องสแกนเท่านั้น ไม่เก็บข้อมูลหรือการยืนยันตัวตน
+
+### ฐานข้อมูลใหม่
+ในชีท `19fSg7LPl-7u14Owomg1hifsJ6kQgafXcoAEYxGVOwaI` เพิ่มหัวตาราง:
+- `TeachingSchedule` — ScheduleID, CourseID, TeacherID, DayOfWeek, StartTime, EndTime, Periods, Room, Topic, AutoOpen, AutoClose, Active, UpdatedAt
+- `ReferralFollowUps` — FollowUpID, ReferralID, StudentID, ActorID, ActionAt, ActionType, Note, NextCheckDate, Status, UpdatedAt
+- `Sessions.ScheduleID` — เชื่อมคาบที่เปิดโดยตารางสอนกับการทำงานของระบบอัตโนมัติ
+
+หัวตารางถูกติดตั้งแล้ว แต่ **ยังไม่ได้ใส่รายการตารางสอนจริงหรือข้อมูลรายบุคคล** จนกว่าจะผ่านสิทธิ์การแชร์และการนำเข้าจริง
+
+### การใช้งานใหม่
+1. ตารางสอน: ครูเลือกวิชา วัน เวลา จำนวนคาบ สามารถเปิด/ปิดอัตโนมัติเป็นรายรายการเท่านั้น ค่าเริ่มต้นไม่เปิดอัตโนมัติ
+2. การยืนยันตัวตน: ยังต้องเชื่อมตัวตรวจ PIN/รหัส Home Room ของจริงจาก Apps Script ระบบเดิม ไม่มีการคัดลอก PIN/Hash
+3. Smart Scan: กล้องจาก GitHub แสดงเต็มหน้า Apps Script, ส่งรหัสผ่าน postMessage origin+nonce; ตรวจรหัสด้วย index, ตรวจบันทึกซ้ำด้วย TextFinder และตอบรับทันที
+4. Early Warning: เริ่มเตือนที่ 7% หรือขาดต่อเนื่อง 2 คาบ; กลุ่มเสี่ยง 10% ถึงต่ำกว่า 20%; มีปัญหา >=20%
+5. Student 360: ครูดูเฉพาะรายวิชาตน ส่วนผู้ดูแล/ผู้บริหารดูทุกวิชาตามสิทธิ์
+6. Follow-up: NEW → IN_REVIEW → FORWARDED → FOLLOW_UP → RESOLVED; บันทึกการโทร ประสานผู้ปกครอง ให้คำปรึกษา เยี่ยมบ้าน และวันติดตามถัดไป
+7. Executive One-Page: เลือก 7 วัน / เดือนนี้ / ทั้งภาคเรียน หรือเลือกวันที่และแผนก พิมพ์ PDF และส่งออก **CSV ที่เปิดด้วย Excel** (ไม่ใช่ .xlsx โดยตรง) ป้องกัน Spreadsheet Formula Injection
+8. Audit: ดูประวัติการแก้ไขผลเช็กชื่อ รายชื่อผู้แก้ ก่อน/หลังแก้ เวลา และเหตุผล
+
+### Performance Design
+- `cachedAnalytics_()` เก็บผลวิเคราะห์ที่บีบอัดใน server-side CacheService เพื่อลดการอ่าน Sheets ทั้งหมดซ้ำ; TTL 75 วินาที และเปลี่ยน revision ทันทีเมื่อข้อมูลหลักเปลี่ยน
+- `scanStudentIndex_()` เก็บดัชนีรหัสและทะเบียนที่อนุมัติ โดยใช้ `CacheService` 60 วินาที เพื่อไม่ต้องอ่านรายชื่อนักเรียน/ทะเบียนใหม่ทุกสแกน
+- `scannerQrIndex_()` เก็บดัชนี QR เป็นเวลา 30 วินาที; หยุดสิทธิ์ผู้ใช้ที่ถูกเพิกถอนอาจล่าช้าไม่เกิน TTL ของแคช
+- ค้นรายการเช็กชื่อซ้ำด้วย `TextFinder` เฉพาะ UniqueKey ในคอลัมน์ B ภายใต้ ScriptLock
+- โหลดกราฟ/รายงานเพิ่มเติมเมื่อผู้ใช้เข้าเมนูนั้น (Lazy UI) ไม่เรียกรายงานทุกชนิดตั้งแต่หน้าแรก
+- ตั้ง Trigger `tickTeachingSchedule_` ด้วย owner-only `installTeachingScheduleTrigger_()` ใน Apps Script editor เมื่อผ่านทดสอบเท่านั้น; ยังไม่ได้ติดตั้ง Trigger จริง
+- แคชเป็นการเร่งความเร็ว ไม่ใช่ฐานข้อมูลหลัก; ความสดของผลรายงานจริงขึ้นกับการ Deploy, quota และความเร็ว Google Sheets
+
+### ความปลอดภัยก่อน Deploy
+**ห้ามเปิด Production ก่อนปรับการแชร์ของข้อมูลต้นทางและชีทปลายทางให้เหมาะสม** เนื่องจากมีข้อมูลบัญชีและข้อมูลนักเรียนในชีทต้นทาง ปัจจุบันชีทต้นทางเปิดอ่านด้วยลิงก์และชีทผลเช็กชื่อใหม่เปิดแก้ไขด้วยลิงก์ ระบบมี Guard ตรวจ Restricted ก่อนเข้าใช้งาน
+
+การปรับแชร์ต้องตรวจผลกระทบกับระบบกิจกรรมเดิมและได้รับอนุมัติก่อน ไม่เปลี่ยนสิทธิ์หรือข้อมูลเดิมโดยอัตโนมัติ
+
+**สิ่งที่ยังไม่ยืนยัน:** การเข้าสู่ระบบร่วม Home Room จริง, การติดตั้ง Apps Script จาก GitHub, การติดตั้ง Trigger, การเปิดกล้องมือถือจริง, Deploy Production และการทดสอบด้วยข้อมูลส่วนบุคคลจริง
+
+---
 
 ## สถานะ
 
@@ -8,7 +59,7 @@
 
 ## โครงสร้างที่กำหนด
 
-- **ระบบหลัก Apps Script:** \`appsscript/TeacherAttendance.gs\` + \`appsscript/TeacherDashboard.gs\` + ไฟล์ HTML ชื่อ \`TeacherApp\` ที่มีเนื้อหาจาก \`appsscript/TeacherApp.html\`
+- **Apps Script ระบบหลัก:** ทั้ง 5 ไฟล์ .gs และ 2 ไฟล์ HTML จากรายการต้นเอกสาร ต้องเพิ่มเข้าโครงการเดียวกัน ไม่ใช้ GitHub เป็น Backend
 - **GitHub Pages สแกนเท่านั้น:** \`docs/teacher/scan.html\` (หน้ากล้อง QR / เครื่องอ่าน USB / ป้อนรหัส) ปลายทาง \`docs/teacher/index.html\` นำมาหน้าสแกนนี้
 - **ฐานข้อมูลใหม่:** https://docs.google.com/spreadsheets/d/19fSg7LPl-7u14Owomg1hifsJ6kQgafXcoAEYxGVOwaI/edit
 - **แหล่งข้อมูลวิชา/รายชื่อ อ่านอย่างเดียว:** https://docs.google.com/spreadsheets/d/18VmMX7nrE9jKEBbL9qsasS5s-sYeJRhfclRb0llIOvw/edit
