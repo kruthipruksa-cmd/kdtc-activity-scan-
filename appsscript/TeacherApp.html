@@ -5,7 +5,16 @@
 :root{--navy:#11284d;--navy2:#1b4675;--gold:#d6ad53;--bg:#f1f4f8;--text:#1c304a;--line:#dce3ee;--muted:#708198;--green:#138557;--red:#c93e48;--amber:#b4791c;--blue:#2571b8}
 *{box-sizing:border-box}body{font-family:system-ui,"Noto Sans Thai",sans-serif;margin:0;color:var(--text);background:var(--bg)}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;border-radius:11px;padding:10px 14px;min-height:41px;font-weight:700;background:var(--navy2);color:#fff}button:disabled{opacity:.45;cursor:default}button.alt{background:#e9eef6;color:#203e62}button.gold{background:var(--gold);color:#1e2940}button.red{background:#f9e6e8;color:#a5313e}button.slim{padding:5px 9px;min-height:31px;font-size:12px}button.ghost{background:transparent;color:var(--navy)}input,select,textarea{width:100%;border:1px solid #ccd7e5;border-radius:10px;padding:10px;background:#fff;color:var(--text);min-height:42px}textarea{min-height:80px;resize:vertical}label{font-size:13px;font-weight:700;display:block;margin:8px 0 5px}.muted{color:var(--muted);font-size:12px}.small{font-size:12px}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.between{display:flex;align-items:center;justify-content:space-between;gap:10px}.logo{display:grid;place-items:center;width:48px;height:48px;border-radius:12px;background:linear-gradient(140deg,#e9c875,#bc8b39);color:#122646;font-size:20px;font-weight:900}
 .header{background:linear-gradient(120deg,#102747,#1c4571);color:#fff;border-bottom:3px solid var(--gold);padding:12px max(16px,calc((100vw - 1320px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}.header h1{margin:0;font-size:22px;color:#f9d783}.header p{margin:0;font-size:11px;color:#d0ddee}
-.shell{max-width:1320px;margin:15px auto;display:grid;grid-template-columns:225px 1fr;gap:16px;padding:0 12px}.sidebar{background:#fff;border:1px solid var(--line);border-radius:17px;padding:12px;align-self:start;position:sticky;top:12px}.sidebar button{display:block;width:100%;text-align:left;margin-bottom:6px;background:transparent;color:#3f5671;font-weight:650}.sidebar button.active{background:#e8eef8;color:#113d72;border-left:4px solid var(--gold)}.surface{min-width:0}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px #192a4810}.panel h2{font-size:19px;margin:0 0 12px}.panel h3{font-size:16px;margin:0 0 10px}.card-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:12px 0}.stat{background:#fff;border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:14px;padding:17px;min-height:94px}.stat strong{display:block;font-size:27px;color:var(--navy)}.stat span{display:block;color:var(--muted);font-size:12px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.sectionTitle{font-weight:800;font-size:21px;margin:3px 0 14px}.bar{height:9px;background:#e5eaf1;overflow:hidden;border-radius:9px;margin:8px 0}.bar>div{height:100%;background:var(--navy2);border-radius:9px}.tableScroll{overflow:auto;max-height:590px;border:1px solid var(--line);border-radius:11px}table{width:100%;border-collapse:collapse;min-width:590px;font-size:12px}td,th{text-align:left;border-bottom:1px solid #e8eef5;padding:9px 10px;vertical-align:middle}th{background:#f0f5fb;position:sticky;top:0;color:#47627c;z-index:1}tr:hover td{background:#fbfcff}.pill{display:inline-block;border-radius:100px;padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap}.pill.problem{background:#fde6e8;color:#ae283b}.pill.risk{background:#fff0d6;color:#98610e}.pill.normal{background:#e5f6ec;color:#0f764a}.pill.none{background:#eef2f7;color:#61728c}.pill.leave{background:#e5effb;color:#2e6eaf}.status{font-size:13px;color:var(--navy2);min-height:20px;margin:11px 0}.status.error{color:#bb2e40}.field4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.field3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.scanFrame{width:100%;height:390px;border:0;background:#eef3f9;border-radius:13px;display:block}.scanResult{font-size:19px;font-weight:800;border-radius:13px;padding:15px;margin:12px 0;background:#ebf3ff;min-height:55px}.scanResult.good{background:#e8f8ef;color:#117d52}.scanResult.bad{background:#fff0f1;color:#a63640}.scanResult.warn{background:#fff3da;color:#976313}.navtop{display:none}.loginWrap{max-width:440px;margin:7vh auto;padding:0 12px}.loginHero{text-align:center;background:linear-gradient(150deg,#112b51,#224875);color:#fff;border-radius:18px 18px 0 0;padding:28px 20px}.loginHero .logo{margin:auto auto 10px}.loginHero h1{margin:0;color:#f7d780}.loginWrap .panel{border-radius:0 0 18px 18px}.printOnly{display:none}
+.shell{max-width:1320px;margin:15px auto;display:grid;grid-template-columns:225px 1fr;gap:16px;padding:0 12px}.sidebar{background:#fff;border:1px solid var(--line);border-radius:17px;padding:12px;align-self:start;position:sticky;top:12px}.sidebar button{display:block;width:100%;text-align:left;margin-bottom:6px;background:transparent;color:#3f5671;font-weight:650}.sidebar button.active{background:#e8eef8;color:#113d72;border-left:4px solid var(--gold)}.surface{min-width:0}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 8px #192a4810}.panel h2{font-size:19px;margin:0 0 12px}.panel h3{font-size:16px;margin:0 0 10px}.card-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:12px 0}.stat{background:#fff;border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:14px;padding:17px;min-height:94px}.stat strong{display:block;font-size:27px;color:var(--navy)}.stat span{display:block;color:var(--muted);font-size:12px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.sectionTitle{font-weight:800;font-size:21px;margin:3px 0 14px}.bar{height:9px;background:#e5eaf1;overflow:hidden;border-radius:9px;margin:8px 0}.bar>div{height:100%;background:var(--navy2);border-radius:9px}.tableScroll{overflow:auto;max-height:590px;border:1px solid var(--line);border-radius:11px}table{width:100%;border-collapse:collapse;min-width:590px;font-size:12px}td,th{text-align:left;border-bottom:1px solid #e8eef5;padding:9px 10px;vertical-align:middle}th{background:#f0f5fb;position:sticky;top:0;color:#47627c;z-index:1}tr:hover td{background:#fbfcff}.pill{display:inline-block;border-radius:100px;padding:4px 9px;font-size:11px;font-weight:800;white-space:nowrap}.pill.problem{background:#fde6e8;color:#ae283b}.pill.risk{background:#fff0d6;color:#98610e}.pill.normal{background:#e5f6ec;color:#0f764a}.pill.none{background:#eef2f7;color:#61728c}.pill.leave{background:#e5effb;color:#2e6eaf}.status{font-size:13px;color:var(--navy2);min-height:20px;margin:11px 0}.status.error{color:#bb2e40}.field4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.field3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.scanFrame{width:100%;height:100%;border:0;background:#eef3f9;display:block}
+.scanOverlay[hidden]{display:none!important}.scanOverlay{position:fixed;inset:0;z-index:9999;background:#f1f4f8;display:flex;flex-direction:column;overflow:hidden}
+.scanOverlayHead{background:linear-gradient(120deg,#102747,#1c4571);color:#fff;border-bottom:3px solid var(--gold);padding:10px 16px;display:flex;align-items:center;gap:12px;justify-content:space-between;min-height:64px}
+.scanOverlayHead strong{font-size:17px;color:#f9d783}.scanOverlayHead small{display:block;color:#cfdbec;font-size:12px}
+.scanOverlayBody{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;max-width:650px;margin:auto;background:#fff}
+.scanOverlayFrame{flex:1;min-height:240px;overflow:hidden;background:#fff}
+.scanOverlayFoot{padding:8px 12px;background:#fff;border-top:1px solid var(--line)}
+.scanOverlayResult{padding:9px 12px;background:#eaf1fb;border-radius:10px;font-size:14px;font-weight:700;color:var(--navy);min-height:39px}
+body.scanning{overflow:hidden}
+@media(max-width:560px){.scanOverlayHead{padding:8px 12px;min-height:56px}.scanOverlayHead strong{font-size:15px}.scanOverlayBody{max-width:100%;}.scanOverlayFoot{padding:8px 10px}}.scanResult{font-size:19px;font-weight:800;border-radius:13px;padding:15px;margin:12px 0;background:#ebf3ff;min-height:55px}.scanResult.good{background:#e8f8ef;color:#117d52}.scanResult.bad{background:#fff0f1;color:#a63640}.scanResult.warn{background:#fff3da;color:#976313}.navtop{display:none}.loginWrap{max-width:440px;margin:7vh auto;padding:0 12px}.loginHero{text-align:center;background:linear-gradient(150deg,#112b51,#224875);color:#fff;border-radius:18px 18px 0 0;padding:28px 20px}.loginHero .logo{margin:auto auto 10px}.loginHero h1{margin:0;color:#f7d780}.loginWrap .panel{border-radius:0 0 18px 18px}.printOnly{display:none}
 @media(max-width:960px){.shell{grid-template-columns:1fr}.sidebar{position:static;display:flex;overflow:auto;gap:5px;white-space:nowrap}.sidebar button{width:auto;margin:0;min-width:110px}.card-grid{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.field4{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.header h1{font-size:18px}.header .logo{width:40px;height:40px}.header p{font-size:10px}.panel{padding:13px}.card-grid{gap:8px}.stat{padding:12px}.stat strong{font-size:23px}.field4,.field3{grid-template-columns:1fr}.scanFrame{height:330px}.sectionTitle{font-size:19px}}
 @media print{body{background:#fff}.sidebar,.noPrint,.header button,.formActions{display:none!important}.shell{display:block}.panel{break-inside:avoid;box-shadow:none}.printOnly{display:block}.header{background:#fff;color:#111;border-color:#caa556}.header h1{color:#162a49}}
@@ -39,9 +48,8 @@
  <div><label>รายวิชา</label><select id="scanCourse"></select></div><div><label>หัวข้อการสอน</label><input id="topic" placeholder="เช่น ปฏิบัติใบงานที่ 3"></div><div><label>จำนวนคาบเรียน</label><select id="periods"><option value="1">1 คาบ</option><option value="2">2 คาบ</option><option value="3">3 คาบ</option><option value="4">4 คาบ</option><option value="5">5 คาบ</option><option value="6">6 คาบ</option><option value="7">7 คาบ</option><option value="8">8 คาบ</option><option value="9">9 คาบ</option></select></div></div>
  <div class="row formActions" style="margin-top:12px"><button id="startSession">▶ เปิดคาบ</button><button id="closeSession" class="red" disabled>■ ปิดคาบ / ตัดขาด</button></div>
  <p id="activeSession" class="muted">ยังไม่ได้เปิดคาบเรียน</p></div>
-<div class="panel"><h2>กล้องสแกน QR (GitHub)</h2><p class="muted">หน้า GitHub ใช้กล้องอ่านรหัสเท่านั้น • Apps Script เป็นผู้ตรวจสิทธิ์และบันทึกผล</p>
-<iframe id="scannerFrame" class="scanFrame" title="กล้องสแกน QR นักเรียน" allow="camera" referrerpolicy="no-referrer"></iframe>
-<div class="row formActions" style="margin-top:10px"><button id="openScanWindow" class="alt">เปิดกล้องในหน้าต่างใหม่</button></div>
+<div class="panel"><h2>สแกนเช็กชื่อ</h2><p class="muted">กดปุ่มเดียวเพื่อเข้าหน้าสแกน QR เต็มจอ • ใช้บัญชีและคาบเรียนที่เปิดอยู่ ไม่ต้องเข้าสู่ระบบอีกครั้ง</p>
+<div class="row formActions" style="margin-top:10px"><button id="launchScanner" class="gold" disabled>▣ เริ่มสแกนเช็กชื่อ</button></div>
 <form id="manualForm" class="row formActions" style="margin-top:11px"><input id="manualCode" style="flex:2;min-width:180px" placeholder="รหัสนักเรียน / QR" autocomplete="off"><button>บันทึก</button></form>
 <div id="scanResult" class="scanResult">พร้อมรับรหัสจากเครื่องสแกน</div></div></section>
 <section id="page-report" class="page" hidden><h2 class="sectionTitle">รายงานเวลาเรียนรายวิชา</h2><div class="panel"><div class="row noPrint"><select id="reportCourse" style="flex:1;min-width:220px"></select><button id="showReport">ดูรายงาน</button><button id="printReport" class="alt">พิมพ์ / PDF</button></div>
@@ -55,10 +63,27 @@
 <div id="referralTable" class="tableScroll"></div></div></section>
 <footer class="muted" style="text-align:center;padding:8px 0 20px">KDTC • ระบบหลัก Google Apps Script • กล้องสแกน GitHub Pages • เวลาประเทศไทย</footer>
 </main></div></div></div>
+<div id="scannerOverlay" class="scanOverlay noPrint" hidden role="dialog" aria-modal="true" aria-label="เครื่องสแกนเช็กชื่อ KDTC">
+ <div class="scanOverlayHead">
+  <div class="row"><div class="logo" style="width:40px;height:40px;font-size:16px">KD</div>
+   <div><strong>KDTC • สแกนเช็กชื่อ</strong><small id="scanContext">พร้อมเช็กชื่อเข้าเรียน</small></div></div>
+  <button id="exitScanner" class="gold" aria-label="กลับไปหน้าระบบหลัก">← กลับ</button>
+ </div>
+ <div class="scanOverlayBody">
+  <div class="scanOverlayFrame"><iframe id="scannerFrame" class="scanFrame" title="กล้องสแกน QR นักเรียน" allow="camera; autoplay" referrerpolicy="no-referrer"></iframe></div>
+  <div class="scanOverlayFoot">
+    <div id="scanLiveResult" class="scanOverlayResult" role="status">พร้อมรับการสแกน</div>
+    <div class="row" style="justify-content:space-between;margin-top:7px">
+      <span class="muted">บันทึกผลโดยระบบ KDTC โดยตรง</span>
+      <button id="openScanWindow" class="alt slim">กล้องมีปัญหา? เปิดแยก</button>
+    </div>
+  </div>
+ </div>
+</div>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-const APP={token:sessionStorage.getItem('KDTC_TEACHER_TOKEN')||'',user:null,dashboard:null,course:null,session:null,report:null,scanNonce:'',scannerWindow:null,busy:false,activePage:'home',riskFilter:'ALL'};
+const APP={token:sessionStorage.getItem('KDTC_TEACHER_TOKEN')||'',user:null,dashboard:null,course:null,session:null,report:null,scanNonce:'',scannerWindow:null,scannerLoaded:false,scannerOpen:false,busy:false,activePage:'home',riskFilter:'ALL'};
 const STATES={PRESENT:'มา',LATE:'สาย',ABSENT:'ขาด',LEAVE:'ลา',NEW:'รอรับเรื่อง',IN_REVIEW:'กำลังดำเนินการ',FORWARDED:'ส่งต่อผู้บริหาร',RESOLVED:'ปิดเรื่อง'};
 function rpc(name,...args){return new Promise((resolve,reject)=>{
  if(!window.google?.script?.run)return reject(Error('หน้านี้ต้องเปิดจาก Google Apps Script Web App'));
@@ -265,9 +290,34 @@ async function loadReferrals(){
  }catch(e){notice(e.message,true)}
 }
 function randomNonce(){const b=new Uint8Array(16);crypto.getRandomValues(b);return [...b].map(x=>x.toString(16).padStart(2,'0')).join('')}
-function showScanPage(){
+async function showScanPage(){
  $('scanCourse').value=APP.course||$('scanCourse').value;
- const id=$('scanCourse').value;if(id)refreshActiveSession();
+ const id=$('scanCourse').value;
+ if(!id)return;
+ await refreshActiveSession();
+ // One tap from the menu opens the same-brand QR camera full-screen if a class is open.
+ if(APP.session&&APP.activePage==='scan')openScannerOverlay();
+}
+function openScannerOverlay(){
+ if(!APP.session){notice('กรุณาเปิดคาบเรียนก่อนเริ่มสแกน',true);return}
+ if(APP.user?.role==='EXECUTIVE')return;
+ const course=(APP.dashboard?.courses||[]).find(c=>c.courseId===APP.session.courseId);
+ $('scanContext').textContent=(course?course.courseCode+' • '+course.room:'รายวิชาที่กำลังสอน')+' • '+APP.session.periods+' คาบ';
+ APP.scannerOpen=true;
+ $('scannerOverlay').hidden=false;
+ document.body.classList.add('scanning');
+ $('scanLiveResult').textContent='พร้อมสแกน • '+APP.session.date;
+ if(!APP.scannerLoaded){
+  $('scannerFrame').src=APP.scanUrl;
+  APP.scannerLoaded=true;
+ }else setScannerEnabled();
+}
+function exitScannerOverlay(){
+ APP.scannerOpen=false;
+ $('scannerOverlay').hidden=true;
+ document.body.classList.remove('scanning');
+ setScannerEnabled(); // Release camera in embedded scanner without ending the class session.
+ $('launchScanner').focus();
 }
 async function refreshActiveSession(){
  const courseId=$('scanCourse').value;APP.course=courseId;
@@ -278,35 +328,39 @@ function updateSessionUi(){
  const x=APP.session;
  $('activeSession').textContent=x?'คาบที่เปิด: '+x.date+' • '+x.periods+' คาบ • '+(x.topic||'ไม่ระบุหัวข้อ'):'ยังไม่ได้เปิดคาบเรียน';
  $('closeSession').disabled=!x;$('startSession').disabled=!!x||APP.user.role==='EXECUTIVE';
+ $('launchScanner').disabled=!x;
  $('scanResult').textContent=x?'พร้อมสแกนสำหรับคาบนี้':'เปิดคาบเรียนก่อนสแกน';
 }
 async function startSession(){
  try{APP.course=$('scanCourse').value;
  APP.session=await rpc('startSession',APP.token,APP.course,$('topic').value,Number($('periods').value));
- updateSessionUi();setScannerEnabled();notice('เปิดคาบเรียนแล้ว • GitHub พร้อมสแกน');}
+ updateSessionUi();setScannerEnabled();notice('เปิดคาบเรียนแล้ว • พร้อมสแกน');
+ openScannerOverlay();}
  catch(e){notice(e.message,true)}
 }
 async function closeSession(){
  if(!APP.session||!confirm('ปิดคาบเรียนและบันทึก ขาด ให้นักเรียนที่ยังไม่มีผลใช่หรือไม่?'))return;
  try{const r=await rpc('closeSession',APP.token,APP.session.sessionId);
- APP.session=null;updateSessionUi();setScannerEnabled();notice('ปิดคาบแล้ว มา '+r.present+' สาย '+r.late+' ขาด '+r.absent+' ลา '+r.leave);
+ APP.session=null;exitScannerOverlay();updateSessionUi();setScannerEnabled();notice('ปิดคาบแล้ว มา '+r.present+' สาย '+r.late+' ขาด '+r.absent+' ลา '+r.leave);
  await reloadDashboard();}
  catch(e){notice(e.message,true)}
 }
 async function handleScan(code){
  if(APP.busy||!APP.session)return;
  APP.busy=true;$('scanResult').textContent='กำลังตรวจรหัสและบันทึก...';
+ $('scanLiveResult').textContent='กำลังตรวจสอบและบันทึกผล...';
  try{
   const result=await rpc('scanStudent',APP.token,APP.session.sessionId,code);
   const message=result.name+' • '+(result.duplicate?'สแกนซ้ำ':STATES[result.status])+' • '+result.classId;
   $('scanResult').textContent=message;
+  $('scanLiveResult').textContent=message;
   $('scanResult').className='scanResult '+(result.status==='PRESENT'?'good':result.status==='LATE'?'warn':'bad');
   sendScannerAck({ok:true,duplicate:result.duplicate,status:result.status});
- }catch(e){$('scanResult').textContent=e.message;$('scanResult').className='scanResult bad';sendScannerAck({ok:false,error:e.message})}
+ }catch(e){$('scanResult').textContent=e.message;$('scanLiveResult').textContent=e.message;$('scanResult').className='scanResult bad';sendScannerAck({ok:false,error:e.message})}
  finally{APP.busy=false}
 }
 function setScannerEnabled(){
- const payload={kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session};
+ const payload={kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session&&APP.scannerOpen};
  const i=$('scannerFrame');if(i.contentWindow)i.contentWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
  if(APP.scannerWindow&&!APP.scannerWindow.closed)APP.scannerWindow.postMessage(payload,'https://kruthipruksa-cmd.github.io');
 }
@@ -317,8 +371,7 @@ function sendScannerAck(data){
 }
 function initScanner(){
  APP.scanNonce=randomNonce();
- const url='https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/scan.html#nonce='+APP.scanNonce;
- $('scannerFrame').src=url;APP.scanUrl=url;
+ APP.scanUrl='https://kruthipruksa-cmd.github.io/kdtc-activity-scan-/teacher/scan.html#nonce='+APP.scanNonce;
 }
 window.addEventListener('message',event=>{
  if(event.origin!=='https://kruthipruksa-cmd.github.io')return;
@@ -326,16 +379,17 @@ window.addEventListener('message',event=>{
  if(!trusted)return;const data=event.data;
  if(!data||data.nonce!==APP.scanNonce)return;
  if(data.kind==='KDTC_SCANNER_READY'){
-  event.source.postMessage({kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session},event.origin);
+  event.source.postMessage({kind:'KDTC_SCANNER_CONFIG',nonce:APP.scanNonce,enabled:!!APP.session&&APP.scannerOpen},event.origin);
   return;
  }
  if(data.kind==='KDTC_STUDENT_SCAN'&&typeof data.code==='string'&&data.code.length<=150){
-  if(!APP.session){sendScannerAck({ok:false,error:'กรุณาเปิดคาบก่อน'});return}
+  if(!APP.session||!APP.scannerOpen){sendScannerAck({ok:false,error:'กรุณาเปิดหน้าสแกนและเปิดคาบก่อน'});return}
   handleScan(data.code);
  }
 });
 async function logout(){
  try{await rpc('logout',APP.token)}catch(e){}
+ if(APP.scannerOpen)exitScannerOverlay();
  APP.token='';APP.user=null;APP.session=null;sessionStorage.removeItem('KDTC_TEACHER_TOKEN');
  $('authScreen').hidden=false;$('application').hidden=true;$('password').value='';
 }
@@ -357,6 +411,13 @@ $('scanCourse').onchange=refreshActiveSession;
 $('startSession').onclick=startSession;
 $('closeSession').onclick=closeSession;
 $('manualForm').onsubmit=ev=>{ev.preventDefault();const input=$('manualCode'),val=input.value.trim();input.value='';if(val)handleScan(val)};
-$('openScanWindow').onclick=()=>{APP.scannerWindow=window.open(APP.scanUrl,'KDTC_TEACHER_SCANNER','width=480,height=800');if(!APP.scannerWindow)notice('เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาตป๊อปอัป',true)};
+$('launchScanner').onclick=openScannerOverlay;
+$('exitScanner').onclick=exitScannerOverlay;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&APP.scannerOpen)exitScannerOverlay()});
+$('openScanWindow').onclick=()=>{
+ if(!APP.session)return notice('กรุณาเปิดคาบก่อน',true);
+ APP.scannerWindow=window.open(APP.scanUrl,'KDTC_TEACHER_SCANNER','width=480,height=800');
+ if(!APP.scannerWindow)notice('เบราว์เซอร์บล็อกหน้าต่างใหม่ กรุณาอนุญาตป๊อปอัป',true);
+};
 initScanner();authStart();
 </script></body></html>
