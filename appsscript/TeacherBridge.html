@@ -3,7 +3,7 @@
 const origin='https://kruthipruksa-cmd.github.io';
 const nonce=<?!= JSON.stringify(bridgeNonce) ?>;
 const channel='KDTC_TEACHER_V1';
-const allowed=new Set(['publicStatus','login','me','logout','getCourses','getRoster','approveRoster','startSession','getOpenSession','scanStudent','closeSession','getReport','updateAttendance','listTeachers','adminSetPin','changeMyPin']);
+const allowed=new Set(['publicStatus','login','me','logout','getCourses','getRoster','approveRoster','startSession','getOpenSession','scanStudent','closeSession','getReport','updateAttendance','getCourseSessions','getSessionAttendance']);
 const requests=new Set();
 function send(obj){window.top.postMessage(Object.assign({channel,nonce},obj),origin)}
 let waiting=setInterval(()=>send({type:'ready'}),1200);send({type:'ready'});
