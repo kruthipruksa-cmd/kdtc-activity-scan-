@@ -271,6 +271,15 @@ function setupFromSource_(){
   const adminId=prop_('BOOTSTRAP_ADMIN_ID')||'T004';
   const imported={};
   imported.Teachers=appendMissing_('Teachers',teachers.map(r=>{const ids=regByName.get(normalizeName_(r[1]))||[];return [r[0],r[1],r[2],r[3],r[0]===adminId?'ADMIN':'TEACHER','TRUE','','','0','','1','',ids.length===1?ids[0]:'']}),[0]);
+  // Idempotent backfill for installations created before the Home Room SSO field.
+  let mapped=0;const teachersSheet=tab_('Teachers');
+  for(const teacher of rows_('Teachers')){
+   if(teacher.HomeRoomUserID)continue;
+   const matches=regByName.get(normalizeName_(teacher.Name))||[];
+   if(matches.length!==1)continue;
+   teachersSheet.getRange(teacher._row,13).setValue(matches[0]);mapped++;
+  }
+  imported.HomeRoomMapped=mapped;
   imported.Students=appendMissing_('Students',students.map(r=>[r[0],r[1],r[2],r[3],r[4],r[6],'',r[7]]),[0]);
   imported.Courses=appendMissing_('Courses',courses.map(r=>{
    const sourceId=String(r[0]).match(/^AC69_2_(T\d+-C\d+)_/),reviewRow=sourceId?reviewMap.get(sourceId[1]):null;
