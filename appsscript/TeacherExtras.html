@@ -1,0 +1,313 @@
+<!-- TeacherExtras.html. Loaded ONLY inside authenticated Apps Script TeacherApp. -->
+<style>
+.extra-toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:12px 0}
+.extra-toolbar>label{flex:1;min-width:130px}
+.extra-banner{background:linear-gradient(130deg,#102747,#1f4c7b);color:#ffde8b;border-radius:12px;padding:13px;font-weight:750;margin:12px 0}
+.extra-warning{background:#fff4df;color:#70531c;border-left:4px solid #d99c3d;padding:12px;border-radius:9px}
+.extra-inline{border-left:3px solid #c3d3e8;padding:9px 12px;margin:9px 0}
+.extra-slim{font-size:12px;color:#728198}
+@media print{.extra-toolbar,.noPrint,#extraReferralModal{display:none!important}.tableScroll{max-height:none;overflow:visible}}
+</style>
+<template id="extrasTemplate">
+<section id="page-timetable" class="page" hidden>
+ <h2 class="sectionTitle">ตารางสอนและเปิดคาบอัตโนมัติ</h2>
+ <div class="panel"><h2>ตารางสอนวันนี้</h2><div id="extraToday"></div></div>
+ <div class="panel"><h2>จัดตารางสอน</h2>
+ <p class="muted">เปิด/ปิดคาบอัตโนมัติเป็นตัวเลือก ต้องติดตั้งทริกเกอร์ใน Apps Script โดยเจ้าของระบบ</p>
+ <form id="extraScheduleForm">
+ <input type="hidden" id="extraScheduleId">
+ <div class="field4">
+ <label>รายวิชา<select id="extraCourse" required></select></label>
+ <label>วัน<select id="extraDay"><option value="1">จันทร์</option><option value="2">อังคาร</option><option value="3">พุธ</option><option value="4">พฤหัสบดี</option><option value="5">ศุกร์</option><option value="6">เสาร์</option><option value="7">อาทิตย์</option></select></label>
+ <label>เวลาเริ่ม<input id="extraStart" type="time" value="08:00" required></label>
+ <label>เวลาเลิก<input id="extraEnd" type="time" value="10:00" required></label>
+ <label>จำนวนคาบ<select id="extraPeriods"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option></select></label>
+ <label>ห้อง<input id="extraRoom" placeholder="เช่น ปวช.2 ชส.1"></label>
+ <label>หัวข้อ<input id="extraTopic" placeholder="หัวข้อการสอน"></label></div>
+ <div class="row" style="margin:12px 0">
+ <label class="row"><input id="extraAutoOpen" type="checkbox" style="width:18px;min-height:auto">เปิดคาบอัตโนมัติ</label>
+ <label class="row"><input id="extraAutoClose" type="checkbox" style="width:18px;min-height:auto">ปิดคาบและตัดขาดอัตโนมัติ</label></div>
+ <button type="submit" class="gold">บันทึกตารางสอน</button>
+ <button type="button" id="extraClearSchedule" class="alt">ล้างแบบฟอร์ม</button></form></div>
+ <div class="panel"><h2>ตารางสอนทั้งหมด</h2><div id="extraAllSchedules" class="tableScroll"></div></div>
+</section>
+<section id="page-warnings" class="page" hidden>
+ <h2 class="sectionTitle">เตือนก่อนถึงเกณฑ์เสี่ยง</h2>
+ <div id="extraWarningsStats" class="card-grid"></div>
+ <div class="panel"><div class="extra-warning">แจ้งเตือนเมื่อขาดเรียนตั้งแต่ 7% หรือขาดติดต่อกัน 2 คาบ แม้ยังไม่ถึงเกณฑ์เสี่ยง 10%</div>
+ <div id="extraWarningsTable" class="tableScroll" style="margin-top:12px"></div></div>
+</section>
+<section id="page-student360" class="page" hidden>
+ <h2 class="sectionTitle">Student 360 • ทุกวิชาในหน้าเดียว</h2>
+ <div class="panel"><div class="row"><input id="extraStudentId" placeholder="รหัสนักเรียนเต็ม" style="flex:1;min-width:180px"><button id="extraFindStudent" class="gold">ค้นหา</button></div><p class="muted">ครูดูเฉพาะนักเรียนและวิชาที่รับผิดชอบ ผู้ดูแลเห็นทั้งวิทยาลัย</p></div>
+ <div id="extraStudentResult"></div>
+</section>
+<section id="page-executive" class="page" hidden>
+ <h2 class="sectionTitle">Executive One-Page</h2>
+ <div class="panel">
+ <div class="extra-toolbar noPrint">
+ <label>ตั้งแต่<input type="date" id="extraFrom"></label><label>ถึง<input type="date" id="extraTo"></label>
+ <label>แผนก<select id="extraDepartment"><option value="">ทุกแผนก</option></select></label>
+ <button id="extraShowExecutive" class="gold">ดูรายงาน</button>
+ <button id="extraPrintExecutive" class="alt">พิมพ์ PDF</button>
+ <button id="extraExportCSV" class="alt">ส่งออก Excel (CSV)</button></div>
+ <div id="extraPeriod" class="extra-banner">รายงานเวลาเรียนวิทยาลัยเทคนิคกาญจนดิษฐ์</div>
+ <div id="extraExecutiveStats" class="card-grid"></div>
+ <h3>รายแผนก</h3><div id="extraDeptTable" class="tableScroll"></div>
+ <h3 style="margin-top:16px">รายห้องเรียน</h3><div id="extraRoomTable" class="tableScroll"></div>
+ <h3 style="margin-top:16px">วิชาที่มีปัญหา</h3><div id="extraCourseTable" class="tableScroll"></div>
+ <h3 style="margin-top:16px">นักเรียนต้องติดตาม</h3><div id="extraTopStudents" class="tableScroll"></div>
+ </div>
+</section>
+<div id="extraReferralModal" class="panel" hidden style="position:fixed;inset:8%;z-index:9998;overflow:auto;max-width:880px;margin:auto;box-shadow:0 0 0 100vmax #142c4d80">
+ <div class="between"><h2>ประวัติส่งต่อและติดตามผล</h2><button id="extraCloseModal" class="alt">ปิด</button></div>
+ <p id="extraReferralStatus" class="muted"></p><div id="extraTimeline" class="tableScroll"></div>
+ <form id="extraFollowupForm"><h3 style="margin-top:14px">บันทึกการช่วยเหลือ</h3>
+ <div class="grid2">
+ <label>วิธีการ<select id="extraFollowupType"><option value="CALL">ติดต่อโทรศัพท์</option><option value="PARENT_CONTACT">ประสานผู้ปกครอง</option><option value="COUNSEL">ให้คำปรึกษา</option><option value="HOME_VISIT">เยี่ยมบ้าน</option><option value="OTHER">อื่น ๆ</option></select></label>
+ <label>ติดตามครั้งถัดไป<input type="date" id="extraFollowupNext"></label></div>
+ <label>ผลการช่วยเหลือ<textarea id="extraFollowupNote" required placeholder="บันทึกอย่างน้อย 10 ตัวอักษร"></textarea></label>
+ <button type="submit" class="gold">บันทึกติดตามผล</button></form></div>
+</template>
+<script>
+(function(){
+'use strict';
+const T=document.getElementById('extrasTemplate');
+const M=document.querySelector('.surface');
+M.insertBefore(T.content.cloneNode(true),M.querySelector('footer'));
+const days=['','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
+const nav=document.getElementById('nav');
+for(const [page,title] of [
+ ['timetable','▤ ตารางสอน'],['warnings','⚠ เตือนก่อนเสี่ยง'],
+ ['student360','◎ นักเรียน 360'],['executive','▥ รายงานผู้บริหาร']
+]){
+ const button=document.createElement('button');button.dataset.page=page;button.textContent=title;
+ button.onclick=()=>showPage(page);nav.append(button);
+}
+const showOriginal=showPage;
+showPage=function(page){
+ showOriginal(page);
+ if(page==='timetable')refreshSchedule();
+ if(page==='warnings')loadWarnings();
+ if(page==='executive')loadExecutive();
+};
+const loggedOriginal=loggedIn;
+loggedIn=async function(){
+ await loggedOriginal();
+ nav.querySelector('[data-page="timetable"]').hidden=APP.user?.role==='EXECUTIVE';
+ nav.querySelector('[data-page="executive"]').hidden=APP.user?.role==='TEACHER';
+};
+const reloadOriginal=reloadDashboard;
+reloadDashboard=async function(){
+ await reloadOriginal();
+ populateCourses();populateDepartments();
+};
+function populateCourses(){
+ const sel=$('extraCourse'),prev=sel.value;
+ sel.replaceChildren();
+ for(const c of APP.dashboard?.courses||[]){
+  const o=elem('option',c.courseCode+' • '+c.courseName+' • '+c.room);
+  o.value=c.courseId;sel.append(o);
+ }
+ if([...sel.options].some(o=>o.value===prev))sel.value=prev;
+}
+function populateDepartments(){
+ const sel=$('extraDepartment'),value=sel.value;
+ sel.replaceChildren();const all=elem('option','ทุกแผนก');all.value='';sel.append(all);
+ for(const x of APP.dashboard?.departments||[]){
+  const o=elem('option',x.label);o.value=x.label;sel.append(o);
+ }
+ if([...sel.options].some(o=>o.value===value))sel.value=value;
+}
+async function refreshSchedule(){
+ try{
+  populateCourses();
+  const [today,items]=await Promise.all([
+   rpc('getTodayTeaching',APP.token),rpc('listTeachingSchedules',APP.token)]);
+  const target=$('extraToday');target.replaceChildren(elem('p','วันนี้ '+today.date+' • '+today.now,'muted'));
+  const box=elem('div');target.append(box);
+  table(box,['เวลา','วิชา','คาบ','สถานะ'],today.rows.map(x=>[
+   x.start+'–'+x.end,x.courseCode+' '+x.room,x.periods,
+   x.forgotClose?'เปิดคาบค้าง':x.openSessionId?'กำลังเปิดคาบ':x.startsSoon?'ใกล้ถึงเวลา':'รอสอน']));
+  const out=$('extraAllSchedules');
+  table(out,['วัน','เวลา','รายวิชา','คาบ','เปิด/ปิดอัตโนมัติ','สถานะ'],
+   items.map(x=>[
+    days[x.dayOfWeek],x.startTime+'–'+x.endTime,x.courseCode+' • '+x.room,
+    x.periods,(x.autoOpen?'เปิด':'ไม่เปิด')+' / '+(x.autoClose?'ปิด':'ปิดเอง'),
+    x.active?'ใช้งาน':'ปิดใช้']));
+  [...out.querySelectorAll('tbody tr')].forEach((tr,i)=>{
+   const x=items[i];if(!x.active)return;
+   const td=elem('td');
+   const edit=elem('button','แก้ไข','alt slim');
+   edit.onclick=()=>{
+    $('extraScheduleId').value=x.scheduleId;$('extraCourse').value=x.courseId;
+    $('extraDay').value=String(x.dayOfWeek);$('extraStart').value=x.startTime;
+    $('extraEnd').value=x.endTime;$('extraPeriods').value=String(x.periods);
+    $('extraRoom').value=x.room;$('extraTopic').value=x.topic||'';
+    $('extraAutoOpen').checked=x.autoOpen;$('extraAutoClose').checked=x.autoClose;
+    $('extraScheduleForm').scrollIntoView({behavior:'smooth'});
+   };
+   const disable=elem('button','หยุดใช้','red slim');
+   disable.onclick=async()=>{
+    if(!confirm('หยุดตารางสอนนี้โดยไม่ลบข้อมูล?'))return;
+    try{await rpc('disableTeachingSchedule',APP.token,x.scheduleId);await refreshSchedule();notice('ปิดใช้งานตารางสอนแล้ว')}
+    catch(e){notice(e.message,true)}
+   };
+   td.append(edit,document.createTextNode(' '),disable);tr.append(td);
+  });
+  out.querySelector('thead tr').append(elem('th','จัดการ'));
+ }catch(e){notice(e.message,true)}
+}
+$('extraScheduleForm').onsubmit=async event=>{
+ event.preventDefault();
+ const cfg={scheduleId:$('extraScheduleId').value,courseId:$('extraCourse').value,
+  dayOfWeek:Number($('extraDay').value),startTime:$('extraStart').value,endTime:$('extraEnd').value,
+  periods:Number($('extraPeriods').value),room:$('extraRoom').value,topic:$('extraTopic').value,
+  autoOpen:$('extraAutoOpen').checked,autoClose:$('extraAutoClose').checked};
+ if(cfg.autoClose&&!confirm('ยืนยันเปิดปิดคาบอัตโนมัติและตัดขาดตามเวลาที่ตั้งไว้?'))return;
+ try{await rpc('saveTeachingSchedule',APP.token,cfg);$('extraScheduleForm').reset();$('extraScheduleId').value='';
+  await refreshSchedule();notice('บันทึกตารางสอนแล้ว')}
+ catch(e){notice(e.message,true)}
+};
+$('extraClearSchedule').onclick=()=>{$('extraScheduleForm').reset();$('extraScheduleId').value=''};
+async function loadWarnings(){
+ try{
+  const r=await rpc('getEarlyWarnings',APP.token);
+  refreshStats('extraWarningsStats',[
+   ['การแจ้งเตือน',r.total+' รายการ'],['ก่อนเกณฑ์เสี่ยง',r.early+' รายการ'],
+   ['เสี่ยง 10–19%',r.risk+' รายการ'],['มีปัญหา ≥20%',r.problem+' รายการ']]);
+  const parent=$('extraWarningsTable'),records=r.students;
+  table(parent,['นักเรียน','วิชา/ห้อง','ร้อยละขาด','ขาดติดกัน','แจ้งเตือน'],
+   records.map(x=>[x.studentName,x.courseCode+' • '+x.room,pct(x.absencePercent),
+    x.consecutiveAbsentPeriods+' คาบ',x.message]));
+  const trs=[...parent.querySelectorAll('tbody tr')];
+  records.forEach((x,i)=>{
+   const cell=elem('td'),b=elem('button','ดู 360','alt slim');b.onclick=()=>openStudent360(x.studentId);cell.append(b);
+   if(x.warning==='PROBLEM'&&APP.user?.role!=='EXECUTIVE'){
+    const send=elem('button','ส่งต่อ','red slim');send.onclick=()=>sendReferral(x);cell.append(send);
+   }
+   trs[i].append(cell);
+  });parent.querySelector('thead tr').append(elem('th','ดำเนินการ'));
+ }catch(e){notice(e.message,true)}
+}
+async function openStudent360(id){
+ $('extraStudentId').value=id;showPage('student360');await loadStudent360();
+}
+window.openStudent360=openStudent360;
+async function loadStudent360(){
+ const id=$('extraStudentId').value.trim();if(!id)return notice('ระบุรหัสนักเรียน',true);
+ try{
+  const data=await rpc('getStudent360',APP.token,id),parent=$('extraStudentResult');
+  parent.replaceChildren();const section=elem('div',undefined,'panel');
+  section.append(elem('h2',data.student.name+' • '+data.student.classId));
+  const cards=elem('div',undefined,'card-grid');
+  for(const [t,v] of [['คาบทั้งหมด',data.summary.periods],['เข้าเรียน',pct(data.summary.attendancePercent)],
+   ['ขาด',pct(data.summary.absencePercent)],['วิชามีปัญหา',data.summary.problemCourses]])
+   cards.append(lineStat(t,v));
+  section.append(cards);
+  const body=elem('div',undefined,'tableScroll');
+  table(body,['รายวิชา','ครู','มา','สาย','ขาด','ลา','เข้าเรียน','สถานะ'],
+   data.courses.map(x=>[x.courseCode,x.teacherName,x.present,x.late,x.absent,x.leave,
+    pct(x.attendancePercent),x.riskLabel]));
+  [...body.querySelectorAll('tbody tr')].forEach((tr,i)=>{
+   const c=data.courses[i];const cell=elem('td'),b=elem('button','ดูย้อนหลัง','alt slim');
+   b.onclick=()=>showStudentHistory(c);cell.append(b);tr.append(cell);
+  });body.querySelector('thead tr').append(elem('th','ตรวจสอบ'));
+  section.append(body);
+  const history=elem('div');history.id='extraStudentHistory';section.append(history);
+  section.append(elem('h3','เรื่องส่งต่อ'));
+  const referrals=elem('div',undefined,'tableScroll');
+  table(referrals,['วิชา','วันที่','สถานะ','เหตุผล'],
+   data.referrals.map(x=>[x.courseCode,x.createdAt,x.status,x.reason]));
+  section.append(referrals);parent.append(section);
+ }catch(e){notice(e.message,true)}
+}
+async function showStudentHistory(course){
+ const box=$('extraStudentHistory');box.replaceChildren(elem('h3','ประวัติ '+course.courseCode));
+ const results=elem('div',undefined,'tableScroll');
+ table(results,['วันที่','คาบ','ผล','หัวข้อ'],course.history.map(x=>[
+  x.date,x.periods,STATES[x.status]||x.status,x.topic||'—']));
+ box.append(results,elem('h3','ประวัติแก้ไขผลเช็กชื่อ'));
+ const audit=elem('div',undefined,'tableScroll');box.append(audit);
+ try{const rows=await rpc('getAttendanceAudit',APP.token,course.courseId,course.studentId);
+  table(audit,['วันเวลา','ผู้แก้','จาก','เป็น','เหตุผล'],
+   rows.map(x=>[x.at,x.by,STATES[x.before]||x.before,STATES[x.after]||x.after,x.note]));
+ }catch(e){notice(e.message,true)}
+ box.scrollIntoView({behavior:'smooth'});
+}
+$('extraFindStudent').onclick=loadStudent360;
+$('extraStudentId').onkeydown=ev=>{if(ev.key==='Enter')loadStudent360()};
+const reportOriginal=loadReport;
+loadReport=async function(){
+ await reportOriginal();
+ if(!APP.report)return;
+ const trList=[...$('courseReportTable').querySelectorAll('tbody tr')];
+ APP.report.students.forEach((x,i)=>{
+  const cell=trList[i]?.children[1];if(!cell)return;
+  const b=elem('button','ดู 360','alt slim');b.style.marginLeft='5px';
+  b.onclick=()=>openStudent360(x.studentId);cell.append(b);
+ });
+};
+async function loadExecutive(){
+ if(APP.user?.role==='TEACHER')return;
+ try{
+  populateDepartments();
+  const from=$('extraFrom').value,to=$('extraTo').value,department=$('extraDepartment').value;
+  const r=await rpc('getExecutiveOnePage',APP.token,from,to,department);
+  $('extraPeriod').textContent='รายงานเวลาเรียน • '+(r.from||'ต้นภาคเรียน')+' ถึง '+(r.to||'ล่าสุด')+(r.department?' • '+r.department:' • ทั้งวิทยาลัย');
+  const v=r.summary;refreshStats('extraExecutiveStats',[
+   ['นักเรียน',v.students+' คน'],['ร้อยละเข้าเรียน',pct(v.attendancePercent)],
+   ['กลุ่มเสี่ยง',v.risk+' คน'],['มีปัญหา',v.problem+' คน']]);
+  table('extraDeptTable',['แผนก','นักเรียน','เข้าเรียน','มีปัญหา','เสี่ยง'],
+   r.departments.map(x=>[x.label,x.students,pct(x.attendancePercent),x.problem,x.risk]));
+  table('extraRoomTable',['ห้อง','นักเรียน','ขาด','มีปัญหา','เสี่ยง'],
+   r.rooms.map(x=>[x.label,x.students,pct(x.absencePercent),x.problem,x.risk]));
+  table('extraCourseTable',['วิชา/ห้อง','ผู้สอน','มีปัญหา','เสี่ยง'],
+   r.problematicCourses.map(x=>[x.courseCode+' '+x.room,x.teacherName,x.problem,x.risk]));
+  table('extraTopStudents',['นักเรียน','ห้อง','แผนก','ขาด'],
+   r.problemStudents.map(x=>[x.studentName,x.room,x.department,pct(x.absencePercent)]));
+ }catch(e){notice(e.message,true)}
+}
+$('extraShowExecutive').onclick=loadExecutive;
+$('extraPrintExecutive').onclick=()=>window.print();
+function csvCell(v){
+ let x=String(v===null||v===undefined?'':v);
+ if(/^\s*[=+\-@]/.test(x))x="'"+x;
+ return '"'+x.replace(/"/g,'""')+'"';
+}
+$('extraExportCSV').onclick=async()=>{
+ try{
+  const result=await rpc('getExecutiveExport',APP.token,$('extraFrom').value,$('extraTo').value,$('extraDepartment').value);
+  const text='\ufeff'+[result.headers,...result.rows].map(x=>x.map(csvCell).join(',')).join('\r\n');
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
+  a.download='KDTC_Attendance_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+  notice('ส่งออกไฟล์ CSV สำหรับเปิดใน Excel แล้ว'+(result.truncated?' กรุณาแบ่งช่วงวันเพื่อลดจำนวนแถว':''));
+ }catch(e){notice(e.message,true)}
+};
+let currentReferral='';
+async function openReferralTimeline(id){
+ currentReferral=id;$('extraReferralModal').hidden=false;
+ $('extraFollowupForm').hidden=APP.user?.role==='EXECUTIVE';
+ try{
+  const report=await rpc('getReferralTimeline',APP.token,id);
+  $('extraReferralStatus').textContent='สถานะ: '+(STATES[report.status]||report.status);
+  table('extraTimeline',['วันเวลา','ผู้ดำเนินการ','รายการ','รายละเอียด','กำหนดติดตาม'],
+   report.timeline.map(x=>[x.at,x.actor,x.action,x.note,x.nextCheckDate||'—']));
+ }catch(e){notice(e.message,true)}
+}
+window.openReferralTimeline=openReferralTimeline;
+$('extraCloseModal').onclick=()=>{$('extraReferralModal').hidden=true;currentReferral=''};
+$('extraFollowupForm').onsubmit=async event=>{
+ event.preventDefault();if(!currentReferral)return;
+ try{
+  await rpc('addReferralFollowUp',APP.token,currentReferral,
+   $('extraFollowupType').value,$('extraFollowupNote').value.trim(),$('extraFollowupNext').value);
+  $('extraFollowupNote').value='';notice('บันทึกติดตามผลแล้ว');
+  await openReferralTimeline(currentReferral);await loadReferrals();
+ }catch(e){notice(e.message,true)}
+};
+STATES.FOLLOW_UP='กำลังติดตามผล';
+})();
+</script>
