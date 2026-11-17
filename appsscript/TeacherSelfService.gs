@@ -81,6 +81,34 @@ function addExistingStudentToCourse(token,courseId,studentId){
   return {ok:true,duplicate:false,studentId:id,name:matches[0].Name};
  });
 }
+/** One RPC call and one append batch for up to 50 students. */
+function addStudentsToCourse(token,courseId,studentIds){
+ return lock_(()=>{
+  const {t,course}=checkCourse_(token,String(courseId));readOnlyExecutive_(t);requireRestrictedSheets_();
+  if(!Array.isArray(studentIds)||!studentIds.length||studentIds.length>50)throw Error('เลือกนักเรียนได้ครั้งละ 1–50 คน');
+  const ids=[...new Set(studentIds.map(x=>String(x||'').trim()))];
+  if(ids.length>50)throw Error('เลือกได้ไม่เกิน 50 คน');
+  const names=new Map(rows_('Students').filter(x=>x.EnrollStatus==='ACTIVE').map(x=>[x.StudentID,x.Name]));
+  if(ids.some(id=>!names.has(id)))throw Error('มีนักเรียนที่ไม่อยู่ในทะเบียนกลางหรือยังไม่เปิดใช้งาน');
+  const existing=new Map(rows_('Enrollments').filter(x=>x.CourseID===course.CourseID).map(x=>[x.StudentID,x]));
+  const sh=tab_('Enrollments'),created=[],at=now_();
+  let updated=0,unchanged=0;
+  for(const id of ids){
+   const record=existing.get(id);
+   if(record?.Status==='APPROVED'){unchanged++;continue}
+   if(record){
+    sh.getRange(record._row,3,1,3).setValues([['APPROVED',at,t.TeacherID]]);
+    updated++;
+   }else created.push([course.CourseID,id,'APPROVED',at,t.TeacherID]);
+  }
+  if(created.length)sh.getRange(sh.getLastRow()+1,1,created.length,5).setValues(created);
+  if(updated||created.length){
+   audit_(t.UserID,'TEACHER_ADD_STUDENTS_BATCH',course.CourseID,{ids,created:created.length,updated});
+   invalidateAnalytics_();invalidateScanIndexes_();
+  }
+  return {ok:true,created:created.length,updated,unchanged,total:ids.length};
+ });
+}
 function requestNewStudent(token,courseId,input){
  return lock_(()=>{
   const {t,course}=checkCourse_(token,String(courseId));readOnlyExecutive_(t);requireRestrictedSheets_();
