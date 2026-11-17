@@ -151,8 +151,7 @@ function listReferrals(token){
  const t=auth_(token);
  let list=rows_('Referrals');
  if(t.Role==='TEACHER')list=list.filter(x=>x.TeacherID===t.TeacherID);
- // Executives see the same institutional dashboard as admins; referrals arrive when forwarded.
- if(t.Role==='EXECUTIVE')list=list.filter(x=>x.Status==='FORWARDED'||x.Status==='RESOLVED');
+ // Executives may VIEW the same full set as admins. Forwarding changes the status to FORWARDED and is logged.
  return list.map(x=>({id:x.ReferralID,studentId:x.StudentID,studentName:x.StudentName,courseId:x.CourseID,
   courseCode:x.CourseCode,teacherId:x.TeacherID,room:x.Room,department:x.Department,
   absentPercent:Number(x.AbsencePct)||0,attendancePercent:Number(x.AttendancePct)||0,
