@@ -107,12 +107,14 @@ function setSetting_(key,val){
  else s.appendRow([key,String(val),'']);
 }
 function publicStatus(){return {ready:setting_('IMPORT_STATUS','')==='READY',authReady:!!(prop_('HOMEROOM_VERIFY_URL')&&prop_('HOMEROOM_SHARED_SECRET')),timeZone:TZ_,version:'1.1.0'}}
+function include_(name){
+ if(name!=='TeacherExtras')throw Error('ไม่ได้รับอนุญาตให้แทรกไฟล์นี้');
+ return HtmlService.createHtmlOutputFromFile(name).getContent();
+}
 function doGet(e){
- // Apps Script is the PRIMARY application: all dashboards, roles and Sheets access.
- // GitHub is a QR camera only, embedded via iframe in TeacherApp.html.
- return HtmlService.createHtmlOutputFromFile('TeacherApp')
-   .setTitle('KDTC ครูผู้สอน — สรุปเวลาเรียน')
-   .addMetaTag('viewport','width=device-width, initial-scale=1');
+ return HtmlService.createTemplateFromFile('TeacherApp').evaluate()
+  .setTitle('KDTC ครูผู้สอน — สรุปเวลาเรียน')
+  .addMetaTag('viewport','width=device-width, initial-scale=1');
 }
 /**
  * TRUSTED SERVER-TO-SERVER ADAPTER: Home Room must expose a private verifier
