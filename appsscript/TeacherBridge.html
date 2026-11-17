@@ -1,0 +1,20 @@
+<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"></head><body><script>
+'use strict';
+const origin='https://kruthipruksa-cmd.github.io';
+const nonce=<?!= JSON.stringify(bridgeNonce) ?>;
+const channel='KDTC_TEACHER_V1';
+const allowed=new Set(['publicStatus','login','me','logout','getCourses','getRoster','approveRoster','startSession','getOpenSession','scanStudent','closeSession','getReport','updateAttendance','listTeachers','adminSetPin','changeMyPin']);
+const requests=new Set();
+function send(obj){window.top.postMessage(Object.assign({channel,nonce},obj),origin)}
+let waiting=setInterval(()=>send({type:'ready'}),1200);send({type:'ready'});
+window.addEventListener('message',e=>{
+ if(e.origin!==origin||e.source!==window.top)return;
+ const x=e.data;if(!x||x.channel!==channel||x.nonce!==nonce)return;
+ if(x.type==='connected'){clearInterval(waiting);return}
+ if(x.type!=='rpc'||typeof x.id!=='string'||x.id.length>90||requests.has(x.id)||requests.size>=10||!allowed.has(x.method)||!Array.isArray(x.args)||x.args.length>5)return;
+ if(JSON.stringify(x.args).length>18000){send({type:'result',id:x.id,error:'ข้อมูลยาวเกินไป'});return}
+ requests.add(x.id);
+ const done=obj=>{requests.delete(x.id);send(Object.assign({type:'result',id:x.id},obj))};
+ google.script.run.withSuccessHandler(result=>done({result})).withFailureHandler(error=>done({error:error.message||String(error)}))[x.method](...x.args);
+});
+</script></body></html>
