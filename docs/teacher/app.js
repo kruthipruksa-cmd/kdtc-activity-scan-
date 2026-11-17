@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id),KEY='kdtc_teacher_endpoint_v1',TOKEN_KEY='kdtc_teacher_session_v1';
-const state={endpoint:localStorage.getItem(KEY)||'',token:sessionStorage.getItem(TOKEN_KEY)||'',peer:null,origin:'',nonce:'',requests:new Map(),teacher:null,courses:[],roster:[],session:null,reader:null,busy:false,lastScan:0};
-const channel='KDTC_TEACHER_V1',label={PRESENT:'มา',LATE:'สาย',ABSENT:'ขาด',SUGGESTED:'รอยืนยัน',APPROVED:'ยืนยันแล้ว'};
+const state={endpoint:localStorage.getItem(KEY)||'',token:sessionStorage.getItem(TOKEN_KEY)||'',peer:null,origin:'',nonce:'',requests:new Map(),teacher:null,courses:[],roster:[],session:null,reviewed:null,reader:null,busy:false,lastScan:0};
+const channel='KDTC_TEACHER_V1',label={PRESENT:'มา',LATE:'สาย',ABSENT:'ขาด',LEAVE:'ลา',SUGGESTED:'รอยืนยัน',APPROVED:'ยืนยันแล้ว'};
 function message(s,err=false){$('notice').textContent=s||'';$('notice').className='notice'+(err?' err':'')}
 function random(){return Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join('')}
 function validEndpoint(s){try{const u=new URL(s);return u.origin==='https://script.google.com'&&/^\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u.pathname)&&!u.search&&!u.hash}catch(_){return false}}
@@ -34,6 +34,7 @@ async function restoreLogin(){
  try{
   const status=await rpc('publicStatus');
   if(!status.ready)message('ระบบยังไม่นำเข้าข้อมูล กรุณาให้ผู้ดูแลตั้งค่าสิทธิ์แชร์และรัน setupFromSource_',true);
+   if(!status.authReady)message('ยังไม่ได้เชื่อมการเข้าสู่ระบบ Home Room กับโครงการ Apps Script',true);
   if(state.token){try{const t=await rpc('me',state.token);return await showApp(t)}catch(e){sessionStorage.removeItem(TOKEN_KEY);state.token=''}}
   $('login').hidden=false;$('app').hidden=true;
  }catch(e){message(e.message,true)}
@@ -49,8 +50,7 @@ async function login(e){
 async function showApp(t){
  state.teacher=t;$('identity').textContent=t.name+' · '+t.teacherId;
  $('app').hidden=false;$('login').hidden=true;
- $('adminPanel').hidden=t.role!=='ADMIN';
- await loadCourses();if(t.role==='ADMIN')await loadTeachers();
+ await loadCourses();
 }
 async function loadCourses(){
  try{
@@ -73,7 +73,7 @@ async function loadCourse(){
   $('rosterInfo').textContent=state.roster.length+' คน';
   renderRoster();
   state.session=await rpc('getOpenSession',state.token,c.courseId);
-  updateSession();$('reportPanel').hidden=true;
+  updateSession();$('reportPanel').hidden=true;await refreshSessions(true);
  }catch(e){message(e.message,true)}
 }
 function renderRoster(){
@@ -104,7 +104,7 @@ function updateSession(){
 }
 async function startSession(){
  const c=selectedCourse();if(!c)return;
- try{state.session=await rpc('startSession',state.token,c.courseId,$('topic').value);updateSession();message('เปิดคาบเรียนแล้ว');}
+ try{state.session=await rpc('startSession',state.token,c.courseId,$('topic').value);updateSession();await refreshSessions(false);await loadSessionAttendance();message('เปิดคาบเรียนแล้ว');}
  catch(e){message(e.message,true)}
 }
 async function closeSession(){
@@ -112,8 +112,8 @@ async function closeSession(){
  try{
   await stopCamera();
   const r=await rpc('closeSession',state.token,state.session.sessionId);
-  message('ปิดคาบแล้ว • มา '+r.present+' สาย '+r.late+' ขาด '+r.absent);
-  state.session=null;updateSession();await showReport();
+  message('ปิดคาบแล้ว • มา '+r.present+' สาย '+r.late+' ขาด '+r.absent+' ลา '+r.leave);
+   state.session=null;updateSession();await refreshSessions(false);await loadSessionAttendance();await showReport();
  }catch(e){message(e.message,true)}
 }
 async function scan(raw){
@@ -126,6 +126,7 @@ async function scan(raw){
   $('scanResult').className='scanResult '+(r.duplicate?'dup':r.status==='PRESENT'?'ok':r.status==='LATE'?'late':'absent');
   speak(r.duplicate?'สแกนซ้ำ':r.status==='PRESENT'?'ผ่านครับ':r.status==='LATE'?'สายแล้วครับ':'ขาดครับ');
   if(!r.duplicate){const li=document.createElement('li');li.textContent=r.name+' · '+statusText+' · '+new Date(r.scanAt).toLocaleTimeString('th-TH',{timeZone:'Asia/Bangkok'});$('recent').prepend(li);while($('recent').children.length>12)$('recent').lastChild.remove()}
+   if($('reviewSession').value===state.session.sessionId)await loadSessionAttendance();
  }catch(e){$('scanResult').textContent=e.message;$('scanResult').className='scanResult err';speak('ไม่ผ่านครับ')}
  finally{state.busy=false}
 }
@@ -151,26 +152,13 @@ async function showReport(){
  try{
   const r=await rpc('getReport',state.token,c.courseId);
   $('reportPanel').hidden=false;
-  $('reportInfo').textContent='คาบเรียนที่ปิดแล้ว '+r.closedSessions+' คาบ • คิดร้อยละจากคาบเรียนที่ปิดจริง';
+  $('reportInfo').textContent='คาบเรียนที่ปิดแล้ว '+r.closedSessions+' คาบ • คิดร้อยละจากคาบเรียนที่ปิดจริง (ลาแสดงแยก ไม่นับเป็นมา)';
   const tbody=$('reportRows');tbody.replaceChildren();
   for(const s of r.students){
    const tr=document.createElement('tr');
-   [s.name+' ('+s.studentId+')',s.present,s.late,s.absent,s.percent===null?'-':s.percent.toFixed(2)+'%'].forEach(v=>{const td=document.createElement('td');td.textContent=String(v);tr.append(td)});tbody.append(tr);
+   [s.name+' ('+s.studentId+')',s.present,s.late,s.absent,s.leave||0,s.percent===null?'-':s.percent.toFixed(2)+'%'].forEach(v=>{const td=document.createElement('td');td.textContent=String(v);tr.append(td)});tbody.append(tr);
   }
  }catch(e){message(e.message,true)}
-}
-async function loadTeachers(){
- try{
-  const teachers=await rpc('listTeachers',state.token);$('adminTeacher').replaceChildren();
-  for(const t of teachers){const o=document.createElement('option');o.value=t.teacherId;o.textContent=t.teacherId+' · '+t.name+(t.hasPin?' • เปิดใช้แล้ว':' • ยังไม่มี PIN');$('adminTeacher').append(o)}
- }catch(e){message(e.message,true)}
-}
-async function resetPin(){
- const pin=$('newPin').value,id=$('adminTeacher').value;
- if(!/^\d{8,12}$/.test(pin))return message('PIN ต้องเป็นตัวเลข 8–12 หลัก',true);
- if(!confirm('กำหนด PIN ใหม่ให้ '+id+' ใช่หรือไม่?'))return;
- try{await rpc('adminSetPin',state.token,id,pin);$('newPin').value='';message('ตั้ง PIN ใหม่แล้ว');await loadTeachers()}
- catch(e){message(e.message,true)}
 }
 async function logout(){await stopCamera();try{if(state.token)await rpc('logout',state.token)}catch(_){}state.token='';state.teacher=null;sessionStorage.removeItem(TOKEN_KEY);$('app').hidden=true;$('login').hidden=false;message('ออกจากระบบแล้ว')}
 $('connect').addEventListener('click',connect);
@@ -187,7 +175,9 @@ $('manualForm').addEventListener('submit',e=>{e.preventDefault();const s=$('stud
 $('reportBtn').addEventListener('click',showReport);
 $('hideReport').addEventListener('click',()=>{$('reportPanel').hidden=true});
 $('logout').addEventListener('click',logout);
-$('setPin').addEventListener('click',resetPin);
+$('refreshAttendance').addEventListener('click',loadSessionAttendance);
+$('reviewSession').addEventListener('change',loadSessionAttendance);
+$('openAttendance').addEventListener('click',async()=>{if(state.session)$('reviewSession').value=state.session.sessionId;await loadSessionAttendance();$('attendancePanel').scrollIntoView({behavior:'smooth',block:'start'});});
 $('reconnect').addEventListener('click',()=>{$('setup').hidden=false;$('endpoint').focus();message('ใส่ลิงก์ Web App ของระบบครูผู้สอนใหม่')});
 $('endpoint').value=state.endpoint;
 if(validEndpoint(state.endpoint))connect();
