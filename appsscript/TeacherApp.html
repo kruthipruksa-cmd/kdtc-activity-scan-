@@ -153,7 +153,7 @@ function fillCourses(){
 }
 function renderHome(){
  const d=APP.dashboard;if(!d)return;const v=d.aggregate;
- refreshStats('overviewStats',[['นักเรียนในรายวิชาที่นับผล',v.students+' คน'],['รายวิชา',v.subjects+' รายการ'],['ร้อยละเข้าเรียน',pct(v.attendancePercent)],['ขาดเกินเกณฑ์',v.problem+' คน']]);
+ refreshStats('overviewStats',[['นักเรียนในรายวิชาที่นับผล',v.students+' คน'],['รายวิชา',v.subjects+' รายการ'],['ร้อยละเข้าเรียน',pct(v.attendancePercent)],['ขาดเกินเกณฑ์',v.problem+' คน'],['ใกล้เกณฑ์เสี่ยง',v.earlyPotential+' คน']]);
  $('riskBreakdown').replaceChildren();
  [['ปกติ',v.normal,'normal'],['เสี่ยง 10–19%',v.risk,'risk'],['มีปัญหา ≥20%',v.problem,'problem']].forEach(x=>{
   const r=elem('div',undefined,'between');r.style.margin='9px 0';r.append(pill(x[2]==='normal'?'NORMAL':x[2]==='risk'?'RISK':'PROBLEM'),elem('strong',x[1]+' คน'));$('riskBreakdown').append(r)
