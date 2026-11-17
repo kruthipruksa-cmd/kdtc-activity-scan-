@@ -1,7 +1,7 @@
 /**
  * KDTC TEACHER ATTENDANCE - separate standalone Google Apps Script project.
  * No writes to the legacy activity database. Requires Script Properties:
- * TEACHER_SHEET_ID, SOURCE_SHEET_ID, HOMEROOM_VERIFY_URL, HOMEROOM_SHARED_SECRET.
+ * TEACHER_SHEET_ID, SOURCE_SHEET_ID, SCAN_SOURCE_SHEET_ID, HOMEROOM_VERIFY_URL, HOMEROOM_SHARED_SECRET.
  * Home Room remains the authority for credentials. Never store/copy teacher PINs here.
  * Run setupFromSource_ in the Apps Script editor only after restricting Sheet sharing.
  */
@@ -32,36 +32,38 @@ function hash_(s){return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_2
 function rand_(){return Utilities.getUuid().replace(/-/g,'')+Utilities.getUuid().replace(/-/g,'')}
 function truth_(s){return String(s).toUpperCase()==='TRUE'}
 function teacher_(id){return rows_('Teachers').find(t=>t.TeacherID===id)}
-/** Activity SCAN Users is a read-only source of truth for role/activation. */
+/** KDTC CARE NEXUS scanner spreadsheet is READ ONLY: TEACHERS role/activation. */
 function requireRestrictedSheets_(){
- // The existing and new Sheets must not be writable through a public link.
- for(const [label,id] of [['ข้อมูลผู้ใช้กิจกรรม',prop_('ACTIVITY_USERS_SHEET_ID')],['ข้อมูลครูผู้สอน',prop_('TEACHER_SHEET_ID')]]){
-  if(!id)throw Error('ยังไม่ตั้งค่าชีท '+label);
-  const access=DriveApp.getFileById(id).getSharingAccess();
-  if(access!==DriveApp.Access.PRIVATE)throw Error('เพื่อความปลอดภัย ต้องตั้งค่าการแชร์แบบ จำกัด (Restricted) ในชีท '+label+' ก่อนใช้งาน');
+ // Both source account data (including PIN hashes) and new attendance data must be private.
+ for(const [label,id] of [['ข้อมูลผู้ใช้ระบบสแกน',prop_('SCAN_SOURCE_SHEET_ID')],['ข้อมูลครูผู้สอน',prop_('TEACHER_SHEET_ID')]]){
+   if(!id)throw Error('ยังไม่ตั้งค่าชีท '+label);
+   if(DriveApp.getFileById(id).getSharingAccess()!==DriveApp.Access.PRIVATE)
+     throw Error('เพื่อความปลอดภัย ต้องตั้งค่าการแชร์เป็น จำกัด (Restricted) ในชีท '+label+' ก่อนใช้งาน');
  }
 }
 function allowedRoleId_(id,settingName,defaults){
- const allowed=(prop_(settingName)||defaults).split(',').map(x=>x.trim().toUpperCase()).filter(Boolean);
- return allowed.includes(id);
+ return (prop_(settingName)||defaults).split(',').map(x=>x.trim().toUpperCase()).filter(Boolean).includes(id);
 }
 function activityUser_(id){
  requireRestrictedSheets_();
- const sheetId=prop_('ACTIVITY_USERS_SHEET_ID');
- if(!sheetId)throw Error('ยังไม่ได้กำหนด ACTIVITY_USERS_SHEET_ID');
- const sh=SpreadsheetApp.openById(sheetId).getSheetByName('Users');
- if(!sh)throw Error('ไม่พบรายชื่อผู้ใช้งานของระบบกิจกรรม');
- const last=sh.getLastRow();if(last<2)throw Error('ไม่มีผู้ใช้ในระบบกิจกรรม');
- const list=sh.getRange(2,1,last-1,7).getDisplayValues();
- const hit=list.find(x=>String(x[0]).trim().toUpperCase()===id);
- if(!hit||String(hit[6]).toUpperCase()!=='TRUE')throw Error('ไม่พบผู้ใช้งานที่เปิดสิทธิ์');
- const type=String(hit[2]).trim().toUpperCase();
+ const sheetId=prop_('SCAN_SOURCE_SHEET_ID');
+ if(!sheetId)throw Error('ยังไม่ได้กำหนด SCAN_SOURCE_SHEET_ID');
+ const sh=SpreadsheetApp.openById(sheetId).getSheetByName('TEACHERS');
+ if(!sh)throw Error('ไม่พบแท็บ TEACHERS ในฐานข้อมูล KDTC CARE NEXUS');
+ const last=sh.getLastRow();if(last<2)throw Error('ไม่มีข้อมูลครูใน TEACHERS');
+ // Read A:E and active I only. DO NOT fetch pinSalt/pinHash from F:H.
+ const basic=sh.getRange(2,1,last-1,5).getDisplayValues();
+ const active=sh.getRange(2,9,last-1,1).getDisplayValues();
+ const idx=basic.findIndex(row=>String(row[0]).trim().toUpperCase()===id);
+ if(idx<0||String(active[idx][0]).trim().toUpperCase()!=='TRUE')throw Error('ไม่พบบัญชีครูที่เปิดสิทธิ์');
+ const hit=basic[idx],roles=String(hit[2]||'').toUpperCase().split(',').map(x=>x.trim());
  let role='';
- if(type==='ADMIN'&&allowedRoleId_(id,'ADMIN_USER_IDS','U035,U036'))role='ADMIN';
- else if(type==='ACTIVITY'&&allowedRoleId_(id,'EXECUTIVE_USER_IDS','U001,U002'))role='EXECUTIVE';
- else if(type==='TEACHER')role='TEACHER';
+ if(roles.includes('ADMIN')&&allowedRoleId_(id,'ADMIN_USER_IDS','U004,U035,U036'))role='ADMIN';
+ else if(allowedRoleId_(id,'EXECUTIVE_USER_IDS','U001,U002')
+         &&(/ผู้อำนวยการ/.test(String(hit[4]))))role='EXECUTIVE';
+ else if(roles.includes('ADVISOR')||roles.includes('TEACHER'))role='TEACHER';
  if(!role)throw Error('สิทธิ์ผู้ใช้งานยังไม่ได้รับอนุญาตในระบบครูผู้สอน');
- return {id,name:String(hit[1]),role,department:String(hit[3]||'')};
+ return {id,name:String(hit[1]),role,department:String(hit[4]||'')};
 }
 function actor_(id){
  const legacy=activityUser_(id);
