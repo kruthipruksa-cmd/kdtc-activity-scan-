@@ -11,7 +11,8 @@
 <div class="info" id="linkState">กำลังเตรียมกล้องสแกน…</div><div class="read" id="reader"></div>
 <div class="controls"><button id="start">เปิดกล้องสแกน</button><button class="alt" id="stop">หยุดกล้อง</button></div>
 <form id="manual"><label for="studentId" class="info">เครื่องอ่าน / กรอกรหัสนักเรียน</label><input id="studentId" inputmode="text" autocomplete="off" placeholder="รหัสนักเรียน / QR"><div class="controls"><button type="submit">เช็กชื่อ</button></div></form>
-<div class="msg" id="result">พร้อมรับข้อมูลจาก QR</div>
+<div class="msg" id="result" role="status">พร้อมรับข้อมูลจาก QR</div>
+<div class="info" id="scanQueue" role="status" hidden></div>
 <small>แสดงผลการเช็กชื่อทันทีผ่านระบบกลาง KDTC</small></div><footer>วิทยาลัยเทคนิคกาญจนดิษฐ์</footer>
 </main>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script><script>
@@ -20,7 +21,15 @@ const $=id=>document.getElementById(id),nonce=new URLSearchParams(location.hash.
 const embedded=new URLSearchParams(location.search).get('embedded')==='1';
 if(embedded)document.body.classList.add('embedded');
 history.replaceState(null,'',location.pathname+location.search);
-let target=null,targetOrigin='',ready=false,pending=null,reader=null,starting=false,sequence=0;
+let target=null,targetOrigin='',ready=false,pending=null,reader=null,starting=false,sequence=0,slowTimer=null,timeoutTimer=null;
+const queue=[];
+const recentlySeen=new Map();
+const MAX_QUEUE=8;
+function showQueue(){
+ const label=$('scanQueue');
+ label.hidden=!pending&&!queue.length;
+ label.textContent=queue.length?'รอบันทึกอีก '+queue.length+' รายการ':pending?'กำลังรอยืนยันจากระบบ':'';
+}
 $('back').hidden=embedded||!window.opener;
 function updateCount(count){
  if(Number.isInteger(count)&&count>=0)$('scanCount').textContent=String(count);
@@ -45,32 +54,50 @@ window.addEventListener('message',event=>{
   updateCount(d.scanCount);
   $('linkState').textContent=ready?'พร้อมสแกนเข้าเรียน':'กรุณาเปิดคาบเรียนจากหน้าหลัก';
   if(ready&&!reader&&!starting)startCamera();
-  if(!ready)stopCamera();
+  if(!ready){queue.length=0;showQueue();stopCamera()}
  }
  if(!target)return;
  if(d.kind==='KDTC_SCAN_COUNT')updateCount(d.count);
  if(d.kind==='KDTC_SCAN_RESULT'){
   const r=d.result||{};
   updateCount(r.scanCount);
-  if(pending===null||(d.requestId!=null&&d.requestId!==pending))return;
+  if(!pending||(d.requestId!=null&&d.requestId!==pending.id))return;
+  clearTimeout(slowTimer);clearTimeout(timeoutTimer);
   pending=null;
   const say=r.ok?(r.duplicate?'สแกนซ้ำ':r.status==='PRESENT'?'ผ่านครับ':r.status==='LATE'?'สายแล้วครับ':r.status==='LEAVE'?'บันทึกลาแล้วครับ':'ขาดครับ'):(r.error||'บันทึกไม่สำเร็จ');
   msg(say,!!r.ok);
   speak(r.ok?say:'ไม่ผ่านครับ');
+  sendNext();
  }
 });
 function speak(text){
  try{if('speechSynthesis' in window){speechSynthesis.cancel();const utter=new SpeechSynthesisUtterance(text);utter.lang='th-TH';utter.rate=1;speechSynthesis.speak(utter)}}catch(_){}
 }
-function submit(raw){
+function submit(raw, fromCamera=false){
  const code=String(raw||'').trim();
- if(!ready)return msg('กรุณาเปิดคาบเรียนจากหน้าหลักก่อน',false);
- if(pending!==null||!code||code.length>150)return;
- const requestId=++sequence;
- pending=requestId;
- msg('กำลังบันทึกผลเช็กชื่อ…');
- post({kind:'KDTC_STUDENT_SCAN',code,requestId});
- setTimeout(()=>{if(pending===requestId){pending=null;msg('ยังไม่ได้รับคำยืนยันจากระบบ กรุณาตรวจสอบก่อนสแกนซ้ำ',false)}},25000);
+ if(!ready){msg('กรุณาเปิดคาบเรียนจากหน้าหลักก่อน',false);return false}
+ if(!code||code.length>150){if(!fromCamera)msg('รหัสสแกนไม่ถูกต้อง',false);return false}
+ if(fromCamera){
+  const now=Date.now(),last=recentlySeen.get(code);
+  for(const [seen,at] of recentlySeen)if(now-at>=900)recentlySeen.delete(seen);
+  recentlySeen.set(code,now);
+  if(last!==undefined&&now-last<900)return false;
+ }
+ if(pending?.code===code||queue.includes(code))return false;
+ if(queue.length>=MAX_QUEUE){msg('คิวเต็ม กรุณารอผลก่อนสแกนบัตรใบนี้อีกครั้ง',false);return false}
+ queue.push(code);
+ sendNext();
+ return true;
+}
+function sendNext(){
+ if(ready&&!pending&&queue.length){
+  const request={id:++sequence,code:queue.shift()};
+  pending=request;
+  post({kind:'KDTC_STUDENT_SCAN',code:request.code,requestId:request.id});
+  slowTimer=setTimeout(()=>{if(pending===request)msg('ระบบกำลังบันทึกช้ากว่าปกติ กรุณารอผลยืนยัน')},8000);
+  timeoutTimer=setTimeout(()=>{if(pending===request)msg('ยังไม่ได้รับผลยืนยัน กรุณาตรวจยอดก่อนปิดหรือเปิดหน้าสแกนใหม่',false)},25000);
+ }
+ showQueue();
 }
 async function startCamera(){
  if(!ready)return msg('กรุณาเปิดคาบเรียนจากหน้าหลักก่อน',false);
@@ -79,7 +106,7 @@ async function startCamera(){
  starting=true;
  const camera=new Html5Qrcode('reader');reader=camera;
  try{
-  await camera.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220}},value=>submit(value),()=>{});
+  await camera.start({facingMode:'environment'},{fps:10,qrbox:{width:220,height:220}},value=>submit(value,true),()=>{});
   starting=false;
   // A close request can arrive while browser camera permission is pending.
   if(!ready||reader!==camera){
@@ -100,7 +127,9 @@ async function stopCamera(){
  if(!reader)return;const x=reader;reader=null;try{await x.stop()}catch(e){}try{await x.clear()}catch(e){}
 }
 $('back').onclick=()=>{
+ if((pending||queue.length)&&!confirm('ยังมีรายการรอผลยืนยัน ต้องการกลับหรือไม่?'))return;
  ready=false;
+ queue.length=0;
  stopCamera();
  post({kind:'KDTC_SCANNER_BACK'});
  window.close();
@@ -108,8 +137,17 @@ $('back').onclick=()=>{
 };
 window.addEventListener('pagehide',()=>{ready=false;stopCamera()});
 $('start').onclick=startCamera;$('stop').onclick=stopCamera;
-$('manual').onsubmit=e=>{e.preventDefault();const v=$('studentId').value;$('studentId').value='';submit(v)};
+$('manual').onsubmit=e=>{e.preventDefault();const input=$('studentId');if(submit(input.value))input.value=''};
 if(!/^[0-9a-f]{32}$/.test(nonce))msg('กรุณาเปิดหน้าเครื่องสแกนผ่านระบบหลัก Apps Script',false);
 else handshake();
-setInterval(()=>{if(nonce&&!target)handshake()},1600);
+const handshakeTimer=setInterval(()=>{
+ if(target){clearInterval(handshakeTimer);return}
+ if(/^[0-9a-f]{32}$/.test(nonce))handshake();
+},800);
+setTimeout(()=>{
+ if(!target&&/^[0-9a-f]{32}$/.test(nonce)){
+  $('linkState').textContent='ยังเชื่อมต่อคาบเรียนไม่ได้';
+  msg('กลับไปเปิดหน้าสแกนจากคาบเรียนเดิมอีกครั้ง',false);
+ }
+},6000);
 </script></body></html>
